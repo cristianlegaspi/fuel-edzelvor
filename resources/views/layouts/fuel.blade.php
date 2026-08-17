@@ -227,7 +227,7 @@
             <div class="flex items-center gap-2 sm:gap-3 shrink-0">
                 @yield('header-actions')
 
-                {{-- Live date & time, shown next to the dark-mode toggle --}}
+                {{-- Live date & time --}}
                 <div x-data="{
                         now: new Date(),
                         tick: null,
@@ -246,17 +246,14 @@
                     <span class="text-xs tabular-nums text-slate-400 dark:text-slate-500" x-text="timeStr"></span>
                 </div>
 
-                <button @click="toggleDark()" class="h-9 w-9 rounded-full flex items-center justify-center text-slate-500 hover:bg-slate-100 dark:text-amber-400 dark:hover:bg-slate-800">
-                    <x-icon name="moon" />
-                </button>
                 <div class="hidden sm:block text-right leading-tight">
                     <p class="text-sm font-medium text-slate-700 dark:text-slate-200">{{ auth()->user()->name }}</p>
                     <p class="text-xs text-slate-400 dark:text-slate-500">{{ \App\Models\User::ROLES[auth()->user()->role] ?? ucfirst(auth()->user()->role) }}</p>
                 </div>
-                <div class="h-9 w-9 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center text-sm font-semibold dark:bg-amber-500/20 dark:text-amber-400"
-                     title="{{ auth()->user()->name }} ({{ \App\Models\User::ROLES[auth()->user()->role] ?? ucfirst(auth()->user()->role) }})">
-                    {{ strtoupper(substr(auth()->user()->name, 0, 1)) }}
-                </div>
+                <button @click="toggleDark()" class="h-9 w-9 rounded-full flex items-center justify-center text-slate-500 hover:bg-slate-100 dark:text-amber-400 dark:hover:bg-slate-800"
+                        title="Toggle dark mode">
+                    <x-icon name="moon" />
+                </button>
             </div>
         </header>
 
