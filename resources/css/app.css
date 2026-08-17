@@ -1,0 +1,95 @@
+@import 'tailwindcss';
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
+@source '../../storage/framework/views/*.php';
+@source '../**/*.blade.php';
+@source '../**/*.js';
+
+@theme {
+    --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
+        'Segoe UI Symbol', 'Noto Color Emoji';
+}
+
+[x-cloak] {
+    display: none !important;
+}
+
+/*
+ * Global form-field theming.
+ *
+ * Root cause of "invisible" text boxes: across the blade forms, inputs
+ * only set a border *color* utility (e.g. border-slate-300) and never a
+ * border *width* utility. Tailwind's preflight resets border-width to 0
+ * by default, so that color has nothing to render — and no padding was
+ * set either, so fields had no visible box in light OR dark mode.
+ *
+ * These base rules give every input/select/textarea a real, visible box
+ * (border width + padding + radius + colors) everywhere in the app,
+ * without having to touch each blade file individually. Any element
+ * that sets its own border/padding/bg/text utility classes still wins,
+ * since Tailwind's utilities layer loads after this base layer.
+ */
+@layer base {
+    input:not([type='checkbox']):not([type='radio']),
+    select,
+    textarea {
+        background-color: white;
+        color: var(--color-slate-900);
+        border-width: 1px;
+        border-style: solid;
+        border-color: var(--color-slate-300);
+        border-radius: 0.5rem;
+        padding: 0.5rem 0.75rem;
+        font-size: 0.875rem;
+        line-height: 1.25rem;
+    }
+
+    input:not([type='checkbox']):not([type='radio'])::placeholder,
+    textarea::placeholder {
+        color: var(--color-slate-400);
+    }
+
+    input:not([type='checkbox']):not([type='radio']):focus,
+    select:focus,
+    textarea:focus {
+        outline: 2px solid var(--color-amber-500);
+        outline-offset: -1px;
+        border-color: var(--color-amber-500);
+    }
+
+    .dark input:not([type='checkbox']):not([type='radio']),
+    .dark select,
+    .dark textarea {
+        background-color: var(--color-slate-800);
+        color: var(--color-slate-100);
+        border-color: var(--color-slate-600);
+    }
+
+    .dark input:not([type='checkbox']):not([type='radio'])::placeholder,
+    .dark textarea::placeholder {
+        color: var(--color-slate-500);
+    }
+
+    .dark input:not([type='checkbox']):not([type='radio']):focus,
+    .dark select:focus,
+    .dark textarea:focus {
+        outline: 2px solid var(--color-amber-500);
+        outline-offset: -1px;
+        border-color: var(--color-amber-500);
+    }
+
+    .dark input:not([type='checkbox']):not([type='radio'])[disabled],
+    .dark input:not([type='checkbox']):not([type='radio']).bg-slate-50,
+    .dark select[disabled],
+    .dark textarea[disabled] {
+        background-color: var(--color-slate-900);
+        color: var(--color-slate-500);
+    }
+
+    input[type='checkbox'],
+    input[type='radio'] {
+        accent-color: var(--color-amber-500);
+    }
+}
