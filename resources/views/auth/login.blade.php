@@ -17,7 +17,7 @@
 <body class="bg-slate-50 dark:bg-slate-800 min-h-screen flex items-center justify-center px-4 transition-colors duration-200">
     <div class="w-full max-w-sm">
         <div class="text-center mb-8">
-            <div class="h-12 w-12 rounded-xl bg-amber-500 mx-auto flex items-center justify-center text-white font-bold text-lg">F</div>
+            <img src="{{ asset('images/logo.png') }}" alt="Edzelvor Fuel Trading" class="h-16 w-16 mx-auto object-contain">
             <h1 class="mt-4 text-xl font-bold text-slate-900 dark:text-white">Edzelvor Fuel Trading</h1>
             <p class="text-sm text-slate-500 dark:text-slate-400">Log in to continue</p>
         </div>
