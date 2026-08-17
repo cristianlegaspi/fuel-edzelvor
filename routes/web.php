@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\AuditLogController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\FuelCustomerNetIncomePrintController;
 use App\Http\Controllers\FuelCustomerPaymentController;
@@ -110,5 +111,13 @@ Route::middleware(['auth', 'account.active', 'idle.timeout'])->group(function ()
     // last-superadmin protection, role whitelist, etc.), so this
     // middleware is defence-in-depth, not the only check.
     Route::resource('users', UserController::class)
+        ->middleware('role:superadmin');
+
+    // Audit trail — superadmin only, read-only. Entries are written
+    // automatically by App\Models\Concerns\Auditable (create/update/
+    // delete/restore on the audited models) and by AuthController
+    // (login/logout/failed-login).
+    Route::get('/audit-logs', [AuditLogController::class, 'index'])
+        ->name('audit-logs.index')
         ->middleware('role:superadmin');
 });

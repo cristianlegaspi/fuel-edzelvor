@@ -192,6 +192,11 @@
                    :class="{ 'lg:justify-center': collapsed }">
                     <x-icon name="users" /> <span x-show="!collapsed || sidebarOpen">User Management</span>
                 </a>
+                <a href="{{ route('audit-logs.index') }}" :title="collapsed ? 'Audit Logs' : ''"
+                   class="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium {{ request()->routeIs('audit-logs.*') ? 'bg-amber-50 text-amber-700 dark:bg-amber-500/10 dark:text-amber-400' : 'text-slate-600 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-800' }}"
+                   :class="{ 'lg:justify-center': collapsed }">
+                    <x-icon name="clock" /> <span x-show="!collapsed || sidebarOpen">Audit Logs</span>
+                </a>
             @endif
         </nav>
 
