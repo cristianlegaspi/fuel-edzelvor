@@ -226,6 +226,26 @@
             </div>
             <div class="flex items-center gap-2 sm:gap-3 shrink-0">
                 @yield('header-actions')
+
+                {{-- Live date & time, shown next to the dark-mode toggle --}}
+                <div x-data="{
+                        now: new Date(),
+                        tick: null,
+                        init() {
+                            this.tick = setInterval(() => { this.now = new Date() }, 1000);
+                        },
+                        get dateStr() {
+                            return this.now.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
+                        },
+                        get timeStr() {
+                            return this.now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true });
+                        }
+                     }"
+                     class="hidden md:flex flex-col items-end leading-tight mr-1 select-none">
+                    <span class="text-xs font-medium text-slate-600 dark:text-slate-300" x-text="dateStr"></span>
+                    <span class="text-xs tabular-nums text-slate-400 dark:text-slate-500" x-text="timeStr"></span>
+                </div>
+
                 <button @click="toggleDark()" class="h-9 w-9 rounded-full flex items-center justify-center text-slate-500 hover:bg-slate-100 dark:text-amber-400 dark:hover:bg-slate-800">
                     <x-icon name="moon" />
                 </button>
