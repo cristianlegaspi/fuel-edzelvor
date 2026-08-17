@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\AuditLog;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
 
 /**
@@ -62,7 +63,7 @@ class AuthController extends Controller
 
             return back()->withErrors([
                 'email' => 'Too many failed login attempts. Please try again in '.self::LOCKOUT_WINDOW_MINUTES.' minutes.',
-            ]);
+            ])->with('retry_after', $this->lockoutSecondsRemaining($email));
         }
 
         if (! Auth::attempt($credentials, $request->boolean('remember'))) {
@@ -128,5 +129,32 @@ class AuthController extends Controller
             ->where('new_values->email', $email)
             ->where('created_at', '>=', now()->subMinutes(self::LOCKOUT_WINDOW_MINUTES))
             ->count() >= self::MAX_ATTEMPTS;
+    }
+
+    /**
+     * Seconds until this email's lockout clears — i.e. until its oldest
+     * failed attempt still inside the window falls out of it. Powers
+     * the countdown shown on the login page (resources/views/auth/login.blade.php).
+     * Since a blocked attempt while locked logs its own 'login_failed'
+     * row (see isLockedOut()'s doc comment), this number grows back to
+     * ~LOCKOUT_WINDOW_MINUTES if someone keeps hammering the endpoint —
+     * same sliding-window behaviour as the lockout itself.
+     */
+    private function lockoutSecondsRemaining(string $email): int
+    {
+        $oldestFailure = AuditLog::query()
+            ->where('action', 'login_failed')
+            ->where('new_values->email', $email)
+            ->where('created_at', '>=', now()->subMinutes(self::LOCKOUT_WINDOW_MINUTES))
+            ->oldest('created_at')
+            ->value('created_at');
+
+        if (! $oldestFailure) {
+            return self::LOCKOUT_WINDOW_MINUTES * 60;
+        }
+
+        $unlocksAt = Carbon::parse($oldestFailure)->addMinutes(self::LOCKOUT_WINDOW_MINUTES);
+
+        return max(0, (int) now()->diffInSeconds($unlocksAt, false));
     }
 }

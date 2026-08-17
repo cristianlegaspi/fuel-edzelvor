@@ -59,6 +59,7 @@ class AppServiceProvider extends ServiceProvider
                     ->withHeaders($headers)
                     ->withInput($request->only('email', 'remember'))
                     ->withErrors(['email' => 'Too many login attempts. Please wait a minute and try again.'])
+                    ->with('retry_after', (int) ($headers['Retry-After'] ?? 60))
             );
         });
     }

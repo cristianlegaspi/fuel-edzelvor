@@ -26,8 +26,14 @@
             <div class="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900 dark:bg-red-500/10 dark:text-red-400">{{ $errors->first() }}</div>
         @endif
 
+        @if (session('retry_after'))
+            <div id="lockoutNotice" class="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700 dark:border-amber-900 dark:bg-amber-500/10 dark:text-amber-400">
+                You can try again in <span id="lockoutCountdown" class="font-semibold tabular-nums"></span>.
+            </div>
+        @endif
+
         <form method="POST" action="{{ route('login') }}" class="space-y-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-6 transition-colors duration-200"
-              onsubmit="var b=this.querySelector('button[type=submit]'); b.disabled=true; b.innerHTML='<span class=&quot;btn-spinner&quot;></span> Logging in…';">
+              onsubmit="var b=this.querySelector('button[type=submit]'); if (b.disabled) { return false; } b.disabled=true; b.innerHTML='<span class=&quot;btn-spinner&quot;></span> Logging in…';">
             @csrf
             <div>
                 <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Email</label>
@@ -52,7 +58,7 @@
                 </div>
             </div>
             <label class="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300"><input type="checkbox" name="remember"> Remember me</label>
-            <button type="submit" class="w-full rounded-lg bg-amber-500 px-4 py-2.5 text-sm font-medium text-white hover:bg-amber-600 disabled:opacity-70 disabled:cursor-wait transition-colors duration-200">Log In</button>
+            <button type="submit" id="submitBtn" data-label="Log In" class="w-full rounded-lg bg-amber-500 px-4 py-2.5 text-sm font-medium text-white hover:bg-amber-600 disabled:opacity-70 disabled:cursor-not-allowed transition-colors duration-200">Log In</button>
         </form>
     </div>
     <style>
@@ -63,5 +69,45 @@
         }
         @keyframes btn-spin { to { transform: rotate(360deg); } }
     </style>
+
+    @if (session('retry_after'))
+        <script>
+            (function () {
+                var remaining = {{ (int) session('retry_after') }};
+                var countdownEl = document.getElementById('lockoutCountdown');
+                var noticeEl = document.getElementById('lockoutNotice');
+                var submitBtn = document.getElementById('submitBtn');
+
+                function format(seconds) {
+                    var m = Math.floor(seconds / 60);
+                    var s = seconds % 60;
+                    return m + ':' + (s < 10 ? '0' : '') + s;
+                }
+
+                function render() {
+                    countdownEl.textContent = format(remaining);
+                    submitBtn.disabled = true;
+                    submitBtn.textContent = 'Try again in ' + format(remaining);
+                }
+
+                render();
+                submitBtn.disabled = remaining > 0;
+
+                var timer = setInterval(function () {
+                    remaining -= 1;
+
+                    if (remaining <= 0) {
+                        clearInterval(timer);
+                        noticeEl.remove();
+                        submitBtn.disabled = false;
+                        submitBtn.textContent = submitBtn.dataset.label;
+                        return;
+                    }
+
+                    render();
+                }, 1000);
+            })();
+        </script>
+    @endif
 </body>
 </html>
