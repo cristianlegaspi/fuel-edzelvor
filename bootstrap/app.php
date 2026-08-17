@@ -3,6 +3,7 @@
 use App\Http\Middleware\AutoLogoutOnInactivity;
 use App\Http\Middleware\EnsureAccountIsActive;
 use App\Http\Middleware\EnsureUserHasRole;
+use App\Http\Middleware\SecurityHeaders;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -19,6 +20,10 @@ return Application::configure(basePath: dirname(__DIR__))
             'account.active' => EnsureAccountIsActive::class,
             'idle.timeout' => AutoLogoutOnInactivity::class,
         ]);
+
+        // CSP / X-Frame-Options / Referrer-Policy / HSTS on every
+        // response — see App\Http\Middleware\SecurityHeaders.
+        $middleware->appendToGroup('web', SecurityHeaders::class);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         //

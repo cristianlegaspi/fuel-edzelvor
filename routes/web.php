@@ -20,7 +20,8 @@ Route::get('/', fn () => redirect()->route('fuel-dashboard'));
 
 Route::middleware('guest')->group(function () {
     Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
-    Route::post('/login', [AuthController::class, 'login']);
+    Route::post('/login', [AuthController::class, 'login'])
+        ->middleware('throttle:login');
 });
 
 Route::post('/logout', [AuthController::class, 'logout'])
