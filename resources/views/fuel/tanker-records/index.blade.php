@@ -54,5 +54,5 @@
     </div>
 </div>
 
-<div class="mt-6">{{ $records->links() }}</div>
+<div class="mt-6"><x-pagination :paginator="$records" /></div>
 @endsection
