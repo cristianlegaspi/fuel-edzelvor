@@ -130,7 +130,7 @@
 
         <div class="flex items-center gap-3 px-6 py-6 border-b border-slate-100 dark:border-slate-800"
              :class="{ 'lg:justify-center lg:px-2': collapsed }">
-            <div class="h-10 w-10 shrink-0 rounded-xl bg-amber-500 flex items-center justify-center text-white font-bold">F</div>
+           <img src="{{ asset('images/logo.png') }}" alt="Edzelvor Fuel Trading" class="h-10 w-10 shrink-0 object-contain">
             <div x-show="!collapsed || sidebarOpen" x-transition.opacity>
                 <p class="font-bold text-slate-900 leading-tight dark:text-white">Edzelvor Fuel Trading</p>
                 <p class="text-xs titlecase tracking-wide text-slate-400 dark:text-slate-500">Management System</p>
