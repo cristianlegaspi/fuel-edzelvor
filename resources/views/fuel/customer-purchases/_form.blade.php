@@ -13,21 +13,73 @@
             'remarks' => $i->remarks,
           ])->values()
         : collect([['id' => null, 'fuel_product' => '', 'liters' => '', 'freight_alwin' => '0', 'freight_tanker' => '0', 'freight_040' => '0.400', 'amount_per_liter' => '', 'selling_price' => '', 'ewt_rate' => '0.01', 'remarks' => '']]);
+
+    $salesOrderOptions = $salesOrders->map(fn ($so) => [
+        'id' => $so->id,
+        'label' => $so->sales_order_no . ' - ' . $so->supplier . ' | ' . $so->stock_label,
+    ])->values();
 @endphp
 
 <div class="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 mb-6">
     <h2 class="font-semibold text-slate-900 dark:text-white mb-4">Sales Order Reference</h2>
     <div class="grid grid-cols-1 md:grid-cols-4 gap-5">
-        <div class="md:col-span-2">
+        <div class="md:col-span-2"
+             style="position: relative;"
+             x-data='{
+                open: false,
+                search: "",
+                options: @json($salesOrderOptions),
+                selectedId: @js(old("fuel_sales_order_id", $purchase->fuel_sales_order_id)),
+                get selectedLabel() {
+                    const found = this.options.find(o => o.id == this.selectedId);
+                    return found ? found.label : "";
+                },
+                get filteredOptions() {
+                    if (!this.search) return this.options;
+                    const q = this.search.toLowerCase();
+                    return this.options.filter(o => o.label.toLowerCase().includes(q));
+                },
+                select(option) {
+                    this.selectedId = option.id;
+                    this.open = false;
+                    this.search = "";
+                },
+                openDropdown() {
+                    this.open = true;
+                    this.$nextTick(() => this.$refs.searchInput?.focus());
+                }
+             }'
+             @click.outside="open = false"
+             @keydown.escape.window="open = false">
             <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Sales Order</label>
-            <select name="fuel_sales_order_id" required class="w-full rounded-lg border-slate-300 dark:border-slate-600 focus:border-amber-500 focus:ring-amber-500">
-                <option value="">Select a sales order</option>
-                @foreach($salesOrders as $so)
-                    <option value="{{ $so->id }}" @selected(old('fuel_sales_order_id', $purchase->fuel_sales_order_id) == $so->id)>
-                        {{ $so->sales_order_no }} - {{ $so->supplier }} | {{ $so->stock_label }}
-                    </option>
-                @endforeach
-            </select>
+
+            <input type="hidden" name="fuel_sales_order_id" :value="selectedId" required>
+
+            <button type="button" @click="open ? (open = false) : openDropdown()"
+                    class="w-full flex items-center justify-between rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 px-3 py-2 text-left text-sm focus:border-amber-500 focus:ring-amber-500">
+                <span :class="selectedLabel ? 'text-slate-900 dark:text-white' : 'text-slate-400'"
+                      x-text="selectedLabel || 'Select an option'"></span>
+                <x-icon name="chevron-down" class="w-4 h-4 text-slate-400 shrink-0" />
+            </button>
+
+            <div x-show="open" x-cloak x-transition
+                 class="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-lg"
+                 style="position: absolute; z-index: 20; top: 100%; left: 0; right: 0; margin-top: 4px;">
+                <div class="p-2 border-b border-slate-100 dark:border-slate-800">
+                    <input type="text" x-model="search" x-ref="searchInput"
+                           placeholder="Start typing to search..."
+                           class="w-full rounded-lg border-slate-300 dark:border-slate-600 text-sm focus:border-amber-500 focus:ring-amber-500">
+                </div>
+                <ul class="max-h-64 overflow-y-auto py-1" style="max-height: 16rem; overflow-y: auto;">
+                    <template x-for="option in filteredOptions" :key="option.id">
+                        <li @click="select(option)"
+                            class="cursor-pointer px-3 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-amber-50 dark:hover:bg-slate-800"
+                            :class="option.id == selectedId ? 'bg-amber-50 dark:bg-slate-800 font-medium' : ''"
+                            x-text="option.label"></li>
+                    </template>
+                    <li x-show="filteredOptions.length === 0" class="px-3 py-2 text-sm text-slate-400">No results found.</li>
+                </ul>
+            </div>
             <p class="text-xs text-slate-400 dark:text-slate-500 mt-1">Only sales orders with remaining stock should be used for new products.</p>
         </div>
     </div>
