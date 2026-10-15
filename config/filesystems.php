@@ -48,15 +48,13 @@ return [
         ],
 
         // Payment attachments: local in development, private S3 in production.
-        'payment_proofs' => [
+       'payment_proofs' => [
             'driver' => env('PAYMENT_PROOFS_DRIVER', 'local'),
             'root' => storage_path('app/private'),
             'key' => env('AWS_ACCESS_KEY_ID'),
             'secret' => env('AWS_SECRET_ACCESS_KEY'),
             'region' => env('AWS_DEFAULT_REGION', 'ap-southeast-1'),
             'bucket' => env('AWS_BUCKET'),
-            'url' => env('AWS_URL'),
-            'endpoint' => env('AWS_ENDPOINT'),
             'use_path_style_endpoint' => env('AWS_USE_PATH_STYLE_ENDPOINT', false),
             'visibility' => 'private',
             'throw' => true,

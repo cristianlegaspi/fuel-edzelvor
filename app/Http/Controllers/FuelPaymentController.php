@@ -74,7 +74,8 @@ class FuelPaymentController extends Controller
 
         if ($request->hasFile('proof_image')) {
             $imagePath = $request->file('proof_image')
-                ->store('supplier-payment-proofs', 'local');
+                // ->store('supplier-payment-proofs', 'local');
+                ->store('supplier-payment-proofs', 'payment_proofs');
 
             if (!$imagePath) {
                 return back()
@@ -91,7 +92,8 @@ class FuelPaymentController extends Controller
             $fuelSalesOrder->payments()->create($validated);
         } catch (\Throwable $exception) {
             if ($imagePath) {
-                Storage::disk('local')->delete($imagePath);
+                // Storage::disk('local')->delete($imagePath);
+                Storage::disk('payment_proofs')->delete($imagePath);
             }
 
             throw $exception;
@@ -112,43 +114,83 @@ class FuelPaymentController extends Controller
 
     public function showProof(FuelPayment $fuelPayment)
     {
-        $imagePath = $fuelPayment->proof_image;
 
-        if (!$imagePath) {
-            abort(404, 'No payment proof attached.');
-        }
+        // Enforce your existing payment-view authorization policy here.
 
+    $imagePath = $fuelPayment->proof_image;
+
+    abort_if(!$imagePath, 404, 'No payment proof attached.');
+
+    $disk = Storage::disk('payment_proofs');
+
+    // New images are stored in Amazon S3.
+    // Older images may still exist in the local storage.
+    if (!$disk->exists($imagePath)) {
         $disk = Storage::disk('local');
+    }
 
-        if (!$disk->exists($imagePath)) {
-            abort(404, 'Payment proof image not found.');
-        }
+    abort_unless(
+        $disk->exists($imagePath),
+        404,
+        'Payment proof image not found.'
+    );
 
-        $mimeType = $disk->mimeType($imagePath);
+    $mimeType = $disk->mimeType($imagePath);
 
-        $allowedTypes = [
-            'image/jpeg',
-            'image/png',
-            'image/webp',
-            'image/gif',
-        ];
+    abort_unless(in_array($mimeType, [
+        'image/jpeg',
+        'image/png',
+        'image/webp',
+        'image/gif',
+    ], true), 404);
 
-        if (!in_array($mimeType, $allowedTypes, true)) {
-            abort(404, 'Invalid image format.');
-        }
+    return $disk->response(
+        $imagePath,
+        null,
+        [
+            'Content-Type' => $mimeType,
+            'Cache-Control' => 'private, no-store',
+            'X-Content-Type-Options' => 'nosniff',
+        ],
+        'inline'
+    );
+        // $imagePath = $fuelPayment->proof_image;
 
-        // Keep the route authenticated and enforce
-        // payment-view authorization before production use.
+        // if (!$imagePath) {
+        //     abort(404, 'No payment proof attached.');
+        // }
 
-        return response()->file(
-            $disk->path($imagePath),
-            [
-                'Content-Type' => $mimeType,
-                'Content-Disposition' => 'inline',
-                'X-Content-Type-Options' => 'nosniff',
-                'Cache-Control' => 'private, no-store',
-            ]
-        );
+        // $disk = Storage::disk('local');
+
+        // if (!$disk->exists($imagePath)) {
+        //     abort(404, 'Payment proof image not found.');
+        // }
+
+        // $mimeType = $disk->mimeType($imagePath);
+
+        // $allowedTypes = [
+        //     'image/jpeg',
+        //     'image/png',
+        //     'image/webp',
+        //     'image/gif',
+        // ];
+
+        // if (!in_array($mimeType, $allowedTypes, true)) {
+        //     abort(404, 'Invalid image format.');
+        // }
+
+        // // Keep the route authenticated and enforce
+        // // payment-view authorization before production use.
+
+        // return response()->file(
+        //     $disk->path($imagePath),
+        //     [
+        //         'Content-Type' => $mimeType,
+        //         'Content-Disposition' => 'inline',
+        //         'X-Content-Type-Options' => 'nosniff',
+        //         'Cache-Control' => 'private, no-store',
+        //     ]
+        // );
     }
 
 
@@ -159,17 +201,28 @@ class FuelPaymentController extends Controller
      */
     public function destroy(FuelPayment $fuelPayment)
     {
-        $imagePath = $fuelPayment->proof_image;
 
-        $fuelPayment->delete();
+    $fuelPayment->delete();
 
-        if ($imagePath) {
-            Storage::disk('local')->delete($imagePath);
-        }
+    // Retain image evidence for audit and possible restoration.
+    // The associated payment record is soft-deleted if the model
+    // uses Laravel SoftDeletes.
 
-        return back()->with(
-            'success',
-            'Supplier payment removed successfully.'
-        );
+    return back()->with(
+        'success',
+        'Supplier payment removed successfully.'
+    );
+        // $imagePath = $fuelPayment->proof_image;
+
+        // $fuelPayment->delete();
+
+        // if ($imagePath) {
+        //     Storage::disk('local')->delete($imagePath);
+        // }
+
+        // return back()->with(
+        //     'success',
+        //     'Supplier payment removed successfully.'
+        // );
     }
 }
