@@ -119,6 +119,27 @@ class FuelDashboardController extends Controller
             })->all(),
         ];
 
+        // Monthly liters for customer purchase items charged the 0.400 freight rate.
+        // Uses purchase date rather than item creation date; excludes soft-deleted records.
+        $freight040Rows = FuelCustomerPurchaseItem::query()
+            ->where('freight_040', 0.400)
+            ->whereHas('customerPurchase', function ($query) use ($productRangeStart) {
+                $query->where('date_ordered', '>=', $productRangeStart);
+            })
+            ->with('customerPurchase:id,date_ordered')
+            ->get(['fuel_customer_purchase_id', 'liters']);
+
+        $freight040LitersByMonth = $freight040Rows
+            ->filter(fn ($row) => $row->customerPurchase && $row->customerPurchase->date_ordered)
+            ->groupBy(fn ($row) => $row->customerPurchase->date_ordered->format('Y-m'))
+            ->map(fn ($rows) => (float) $rows->sum('liters'));
+
+        $freight040Monthly = [
+            'labels' => $productMonths->map(fn ($m) => $m->format('M Y'))->all(),
+            'liters' => $productMonths->map(fn ($m) => (float) ($freight040LitersByMonth[$m->format('Y-m')] ?? 0))->all(),
+            'total' => (float) $freight040Rows->sum('liters'),
+        ];
+
         // Doughnut chart: remaining stock by fuel product
         $stockByProduct = FuelSalesOrderItem::query()
             ->whereNull('deleted_at')
@@ -141,6 +162,7 @@ class FuelDashboardController extends Controller
             'performanceTrend',
             'netIncomeKpi',
             'volumeByProduct',
+            'freight040Monthly',
             'stocksRemaining'
         ));
     }

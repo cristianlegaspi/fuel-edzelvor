@@ -164,6 +164,23 @@
     </div>
 </div>
 
+{{-- ===================== 0.40 Freight Monthly Volume ===================== --}}
+<div class="mb-10 rounded-xl border border-slate-200 bg-white transition-colors duration-200 dark:border-slate-800 dark:bg-slate-900">
+    <div class="flex flex-wrap items-center justify-between gap-3 px-5 py-4 border-b border-slate-100 dark:border-slate-800">
+        <div>
+            <h3 class="font-semibold text-slate-900 dark:text-white">0.40 Freight — Total Liters per Month</h3>
+            <p class="text-xs text-slate-400 dark:text-slate-500 mt-0.5">Last 4 months · Customer purchase items with ₱0.40/liter freight</p>
+        </div>
+        <div class="text-right">
+            <span class="block text-xs text-slate-500 dark:text-slate-400">4-month total</span>
+            <span class="font-semibold text-slate-900 dark:text-white">{{ number_format($freight040Monthly['total'], 2) }} L</span>
+        </div>
+    </div>
+    <div class="p-4">
+        <div class="relative h-[220px] sm:h-[260px]"><canvas id="freight040Chart"></canvas></div>
+    </div>
+</div>
+
 {{-- ===================== Recent activity ===================== --}}
 <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
     <div class="rounded-xl border border-slate-200 bg-white transition-colors duration-200 dark:border-slate-800 dark:bg-slate-900">
@@ -336,8 +353,35 @@
             }
         });
 
+        // Monthly volume for items with 0.400 freight per liter
+        const freight040Chart = new Chart(document.getElementById('freight040Chart'), {
+            type: 'bar',
+            data: {
+                labels: @json($freight040Monthly['labels']),
+                datasets: [{
+                    label: 'Liters at ₱0.40 freight',
+                    data: @json($freight040Monthly['liters']),
+                    backgroundColor: amber,
+                    borderRadius: 5,
+                    maxBarThickness: 100,
+                }],
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: { callbacks: { label: context => Number(context.parsed.y).toLocaleString('en-PH', { maximumFractionDigits: 2 }) + ' L' } },
+                },
+                scales: {
+                    x: { ticks: { color: tickColor() }, grid: { display: false } },
+                    y: { beginAtZero: true, ticks: { color: tickColor(), callback: value => Number(value).toLocaleString('en-PH') + ' L' }, grid: { color: gridColor() } },
+                },
+            },
+        });
+
         // Re-theme charts when dark mode toggles
-        const charts = [performanceChart, productChart];
+        const charts = [performanceChart, productChart, freight040Chart];
         const observer = new MutationObserver(() => {
             charts.forEach(chart => {
                 if (chart.options.scales?.y) {
