@@ -50,7 +50,7 @@ class FuelCustomerPaymentController extends Controller
         unset($validated['proof_image']);
         $uploadedPath = null;
         if ($request->hasFile('proof_image')) {
-            // Shared private S3 bucket, separate customer prefix.
+            // Shared disk: local in Laragon, private S3 in production.
             $uploadedPath = $request->file('proof_image')->store('customer-payment-proofs', 'payment_proofs');
             $validated['proof_image'] = $uploadedPath;
         }
@@ -80,7 +80,6 @@ class FuelCustomerPaymentController extends Controller
             'Content-Disposition' => 'inline',
             'Cache-Control' => 'private, no-store',
             'X-Content-Type-Options' => 'nosniff',
-            'Content-Security-Policy' => "default-src 'none'; sandbox",
         ], 'inline');
     }
 

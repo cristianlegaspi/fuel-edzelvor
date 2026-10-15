@@ -127,30 +127,44 @@
 <script>
 let paymentProofZoom = 1;
 let previousBodyOverflow = '';
+
 function openPaymentProof(url) {
     const modal = document.getElementById('paymentProofModal');
     const image = document.getElementById('paymentProofModalImage');
     const panel = document.getElementById('paymentProofWindow');
     const viewport = document.getElementById('paymentProofImageContainer');
+
     paymentProofZoom = 1;
-    panel.style.width = Math.min(440, Math.max(280, window.innerWidth - 24)) + 'px';
-    panel.style.height = Math.min(570, Math.max(230, window.innerHeight - 24)) + 'px';
+
+    panel.style.width = Math.min(440, window.innerWidth - 24) + 'px';
+    panel.style.height = Math.min(570, window.innerHeight - 24) + 'px';
     panel.style.transform = 'translate(0px, 0px)';
+
     proofModalOffsetX = 0;
     proofModalOffsetY = 0;
-    image.onload = () => renderPaymentProof();
-    image.onerror = () => {
-        closePaymentProof();
-        alert('Unable to load saved payment proof. Verify the attachment exists in storage and the proof route returns a valid image.');
+
+    image.onload = function () {
+        renderPaymentProof();
     };
+
+    image.onerror = function () {
+        console.error('Payment proof failed to load:', url);
+        console.error('Image natural size:', image.naturalWidth, image.naturalHeight);
+
+        alert('Unable to display payment proof image. Check browser Console and Network Preview.');
+    };
+
     modal.classList.remove('hidden');
     modal.classList.add('flex');
+
     previousBodyOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
+
     viewport.scrollTop = 0;
     viewport.scrollLeft = 0;
+
+    image.removeAttribute('src');
     image.src = url;
-    if (image.complete && image.naturalWidth) renderPaymentProof();
 }
 
 function closePaymentProof() {

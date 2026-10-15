@@ -5,28 +5,33 @@ namespace App\Http\Controllers;
 use App\Models\FuelPayment;
 use App\Models\FuelSalesOrder;
 use Illuminate\Http\Request;
-
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rules\File;
 
 /**
- * Payments made TO the supplier against a FuelSalesOrder.
- * FuelSalesOrder::recalculateTotals() fires automatically from
- * FuelPayment's model events, so paid_amount/balance_amount/status
- * update themselves — this controller just writes the payment row.
+ * Payments made TO suppliers against FuelSalesOrder.
+ *
+ * FuelSalesOrder::recalculateTotals() is handled automatically
+ * through FuelPayment model events.
  */
 class FuelPaymentController extends Controller
 {
+    /**
+     * Display supplier payments.
+     */
     public function index(Request $request)
     {
         $payments = FuelPayment::query()
             ->with('salesOrder')
-            ->when($request->filled('search'), function ($q) use ($request) {
-                $q->where(function ($q) use ($request) {
-                    $q->where('reference_no', 'like', "%{$request->search}%")
-                        ->orWhereHas('salesOrder', function ($q) use ($request) {
-                            $q->where('sales_order_no', 'like', "%{$request->search}%")
-                                ->orWhere('supplier', 'like', "%{$request->search}%");
+            ->when($request->filled('search'), function ($query) use ($request) {
+                $search = $request->search;
+
+                $query->where(function ($query) use ($search) {
+                    $query->where('reference_no', 'like', "%{$search}%")
+                        ->orWhereHas('salesOrder', function ($orderQuery) use ($search) {
+                            $orderQuery
+                                ->where('sales_order_no', 'like', "%{$search}%")
+                                ->orWhere('supplier', 'like', "%{$search}%");
                         });
                 });
             })
@@ -34,9 +39,15 @@ class FuelPaymentController extends Controller
             ->paginate(15)
             ->withQueryString();
 
-        return view('fuel.supplier-payments.index', compact('payments'));
+        return view(
+            'fuel.supplier-payments.index',
+            compact('payments')
+        );
     }
 
+    /**
+     * Store supplier payment with optional image proof.
+     */
     public function store(Request $request, FuelSalesOrder $fuelSalesOrder)
     {
         $validated = $request->validate([
@@ -65,54 +76,87 @@ class FuelPaymentController extends Controller
             $imagePath = $request->file('proof_image')
                 ->store('supplier-payment-proofs', 'local');
 
+            if (!$imagePath) {
+                return back()
+                    ->withErrors([
+                        'proof_image' => 'Unable to save payment proof image.',
+                    ])
+                    ->withInput();
+            }
+
             $validated['proof_image'] = $imagePath;
         }
 
         try {
             $fuelSalesOrder->payments()->create($validated);
-        } catch (\Throwable $e) {
+        } catch (\Throwable $exception) {
             if ($imagePath) {
                 Storage::disk('local')->delete($imagePath);
             }
 
-            throw $e;
+            throw $exception;
         }
 
-        return back()->with('success', 'Payment recorded successfully.');
+        return back()->with(
+            'success',
+            'Supplier payment recorded successfully.'
+        );
     }
+
+    /**
+     * Display proof image securely.
+     *
+     * Images are stored in Laravel private local storage.
+     * This endpoint is used by the draggable image modal.
+     */
 
     public function showProof(FuelPayment $fuelPayment)
     {
-        if (
-            !$fuelPayment->proof_image ||
-            !Storage::disk('local')->exists($fuelPayment->proof_image)
-        ) {
-            abort(404, 'Payment proof not found.');
+        $imagePath = $fuelPayment->proof_image;
+
+        if (!$imagePath) {
+            abort(404, 'No payment proof attached.');
         }
 
-        $path = Storage::disk('local')->path($fuelPayment->proof_image);
+        $disk = Storage::disk('local');
 
-        $mimeType = Storage::disk('local')
-            ->mimeType($fuelPayment->proof_image);
+        if (!$disk->exists($imagePath)) {
+            abort(404, 'Payment proof image not found.');
+        }
 
-        if (!in_array($mimeType, [
+        $mimeType = $disk->mimeType($imagePath);
+
+        $allowedTypes = [
             'image/jpeg',
             'image/png',
             'image/webp',
             'image/gif',
-        ], true)) {
-            abort(404);
+        ];
+
+        if (!in_array($mimeType, $allowedTypes, true)) {
+            abort(404, 'Invalid image format.');
         }
 
-        return response()->file($path, [
-            'Content-Type' => $mimeType,
-            'Content-Disposition' => 'inline',
-            'X-Content-Type-Options' => 'nosniff',
-            'Cache-Control' => 'private, no-store',
-            'Content-Security-Policy' => "default-src 'none'; sandbox",
-        ]);
+        // Keep the route authenticated and enforce
+        // payment-view authorization before production use.
+
+        return response()->file(
+            $disk->path($imagePath),
+            [
+                'Content-Type' => $mimeType,
+                'Content-Disposition' => 'inline',
+                'X-Content-Type-Options' => 'nosniff',
+                'Cache-Control' => 'private, no-store',
+            ]
+        );
     }
 
+
+    /**
+     * Delete supplier payment.
+     *
+     * Maintains existing payment deletion behavior.
+     */
     public function destroy(FuelPayment $fuelPayment)
     {
         $imagePath = $fuelPayment->proof_image;
@@ -123,6 +167,9 @@ class FuelPaymentController extends Controller
             Storage::disk('local')->delete($imagePath);
         }
 
-        return back()->with('success', 'Payment removed.');
+        return back()->with(
+            'success',
+            'Supplier payment removed successfully.'
+        );
     }
 }
