@@ -54,11 +54,6 @@ Route::middleware(['auth', 'account.active', 'idle.timeout'])->group(function ()
     Route::delete('/fuel-payments/{fuelPayment}', [FuelPaymentController::class, 'destroy'])
         ->name('fuel-payments.destroy')
         ->middleware('role:superadmin,admin');
-    // Protected supplier payment proof image preview
-        Route::get('/fuel-payments/{fuelPayment}/proof', [
-            FuelPaymentController::class,
-            'showProof'
-        ])->name('fuel-payments.proof');
 
     // Customer purchases + their payments + their tanker record
     Route::resource('fuel-customer-purchases', FuelCustomerPurchaseController::class)
@@ -69,6 +64,8 @@ Route::middleware(['auth', 'account.active', 'idle.timeout'])->group(function ()
 
     Route::get('/fuel-customer-payments', [FuelCustomerPaymentController::class, 'index'])
         ->name('fuel-customer-payments.index');
+    Route::get('/fuel-customer-payments/{fuelCustomerPayment}/proof', [FuelCustomerPaymentController::class, 'showProof'])
+        ->name('fuel-customer-payments.proof');
     Route::post('/fuel-customer-purchases/{fuelCustomerPurchase}/payments', [FuelCustomerPaymentController::class, 'store'])
         ->name('fuel-customer-purchases.payments.store');
     Route::delete('/fuel-customer-payments/{fuelCustomerPayment}', [FuelCustomerPaymentController::class, 'destroy'])

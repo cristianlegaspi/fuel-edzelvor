@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use App\Models\FuelCustomerPayment;
 use App\Models\FuelCustomerPurchase;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\Rules\File;
 
 /**
  * Payments received FROM the customer against a FuelCustomerPurchase.
@@ -42,15 +44,50 @@ class FuelCustomerPaymentController extends Controller
             'payment_method' => ['nullable', 'string', 'max:255'],
             'reference_no' => ['nullable', 'string', 'max:255'],
             'remarks' => ['nullable', 'string'],
+            'proof_image' => ['nullable', File::image()->types(['jpg', 'jpeg', 'png', 'webp', 'gif'])->max('5mb')],
         ]);
 
-        $fuelCustomerPurchase->payments()->create($validated);
+        unset($validated['proof_image']);
+        $uploadedPath = null;
+        if ($request->hasFile('proof_image')) {
+            // Shared private S3 bucket, separate customer prefix.
+            $uploadedPath = $request->file('proof_image')->store('customer-payment-proofs', 'payment_proofs');
+            $validated['proof_image'] = $uploadedPath;
+        }
+
+        try {
+            $fuelCustomerPurchase->payments()->create($validated);
+        } catch (\Throwable $e) {
+            if ($uploadedPath) Storage::disk('payment_proofs')->delete($uploadedPath);
+            throw $e;
+        }
 
         return back()->with('success', 'Payment recorded.');
     }
 
+    public function showProof(FuelCustomerPayment $fuelCustomerPayment)
+    {
+        // Route is protected by auth/account middleware. Add per-record authorization
+        // here if your app has customer- or role-specific viewing restrictions.
+        if (!$fuelCustomerPayment->proof_image) abort(404);
+        $disk = Storage::disk('payment_proofs');
+        $path = $fuelCustomerPayment->proof_image;
+        if (!$disk->exists($path)) abort(404);
+        $mime = $disk->mimeType($path);
+        if (!in_array($mime, ['image/jpeg', 'image/png', 'image/gif', 'image/webp'], true)) abort(404);
+        return $disk->response($path, null, [
+            'Content-Type' => $mime,
+            'Content-Disposition' => 'inline',
+            'Cache-Control' => 'private, no-store',
+            'X-Content-Type-Options' => 'nosniff',
+            'Content-Security-Policy' => "default-src 'none'; sandbox",
+        ], 'inline');
+    }
+
     public function destroy(FuelCustomerPayment $fuelCustomerPayment)
     {
+        // SoftDeletes retains payment history. Do not delete the S3 proof here,
+        // so authorized restores can still recover the corresponding attachment.
         $fuelCustomerPayment->delete();
 
         return back()->with('success', 'Payment removed.');
