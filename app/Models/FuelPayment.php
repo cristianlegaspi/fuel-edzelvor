@@ -18,6 +18,7 @@ class FuelPayment extends Model
         'reference_no',
         'payment_method',
         'remarks',
+        'proof_image',
     ];
 
     protected $casts = [

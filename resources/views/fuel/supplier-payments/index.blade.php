@@ -22,6 +22,7 @@
                 <th class="px-6 py-3 font-medium whitespace-nowrap">Amount</th>
                 <th class="px-6 py-3 font-medium whitespace-nowrap">Method</th>
                 <th class="px-6 py-3 font-medium whitespace-nowrap">Reference No.</th>
+                <th class="px-6 py-3 font-medium whitespace-nowrap">Payment Proof</th>
                 <th class="px-6 py-3 font-medium whitespace-nowrap text-right">Actions</th>
             </tr>
         </thead>
@@ -40,6 +41,20 @@
                     <td class="px-6 py-3 whitespace-nowrap font-medium text-slate-800 dark:text-white">₱{{ number_format($payment->amount, 2) }}</td>
                     <td class="px-6 py-3 whitespace-nowrap text-slate-600 dark:text-slate-300">{{ $payment->payment_method ?? '—' }}</td>
                     <td class="px-6 py-3 whitespace-nowrap text-slate-600 dark:text-slate-300">{{ $payment->reference_no ?? '—' }}</td>
+                    <td class="px-6 py-3 whitespace-nowrap">
+                    @if($payment->proof_image)
+                        <a
+                            href="{{ route('fuel-payments.proof', $payment) }}"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            class="text-amber-600 dark:text-amber-400 font-medium hover:underline"
+                        >
+                            View Proof
+                        </a>
+                    @else
+                        <span class="text-slate-400">No Image</span>
+                    @endif
+                </td>
                     <td class="px-6 py-3 whitespace-nowrap text-right space-x-2">
                         @if($payment->salesOrder)
                             <a href="{{ route('fuel-payments.soa.print', $payment->salesOrder) }}" class="text-amber-600 dark:text-amber-400 text-sm font-medium hover:underline" target="_blank">SOA</a>
@@ -51,7 +66,7 @@
                     </td>
                 </tr>
             @empty
-                <tr><td colspan="7" class="px-6 py-10 text-center text-slate-400 dark:text-slate-500">No supplier payments found.</td></tr>
+                <tr><td colspan="8" class="px-6 py-10 text-center text-slate-400 dark:text-slate-500">No supplier payments found.</td></tr>
             @endforelse
         </tbody>
     </table>
