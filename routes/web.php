@@ -61,6 +61,13 @@ Route::middleware(['auth', 'account.active', 'idle.timeout'])->group(function ()
     ])->name('fuel-payments.proof');
 
     // Customer purchases + their payments + their tanker record
+    
+    
+    Route::get(
+    '/fuel-customer-purchases/{fuelCustomerPurchase}/details',
+    [FuelCustomerPurchaseController::class, 'details']
+    )->name('fuel-customer-purchases.details');
+        
     Route::resource('fuel-customer-purchases', FuelCustomerPurchaseController::class)
         ->except(['show', 'destroy']);
     Route::delete('/fuel-customer-purchases/{fuelCustomerPurchase}', [FuelCustomerPurchaseController::class, 'destroy'])

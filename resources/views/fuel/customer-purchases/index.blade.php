@@ -124,68 +124,67 @@
 
                         </td>
 
-                        {{-- Actions --}}
-                        <td class="px-6 py-3 whitespace-nowrap text-right">
+                        
+            {{-- Actions --}}
+            <td class="px-6 py-3 whitespace-nowrap text-right">
 
-                            @if($isPaid)
+                @php
+                    $isPaid = strtolower(trim((string) $purchase->status)) === 'paid';
+                @endphp
 
-                                <span
-                                    class="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 px-3 py-1.5 text-xs font-medium text-slate-500 dark:text-slate-400"
-                                    title="Fully paid purchases cannot be edited or deleted."
-                                >
-                                    <svg
-                                        xmlns="http://www.w3.org/2000/svg"
-                                        width="14"
-                                        height="14"
-                                        viewBox="0 0 24 24"
-                                        fill="none"
-                                        stroke="currentColor"
-                                        stroke-width="2"
-                                        stroke-linecap="round"
-                                        stroke-linejoin="round"
-                                    >
-                                        <rect width="14" height="11" x="5" y="11" rx="2"/>
-                                        <path d="M8 11V7a4 4 0 0 1 8 0v4"/>
-                                    </svg>
+                <div class="inline-flex items-center gap-3">
 
-                                    Locked (Paid)
-                                </span>
+                    @if($isPaid)
 
-                            @else
+                        {{-- Paid: View Details Only --}}
+                        <a
+                            href="{{ route('fuel-customer-purchases.details', $purchase) }}"
+                            class="text-blue-600 dark:text-blue-400 text-sm font-medium hover:underline"
+                        >
+                            View Details
+                        </a>
 
-                                <div class="inline-flex items-center gap-3">
+                        <span
+                            class="inline-flex items-center gap-1 text-xs font-medium text-slate-400"
+                            title="This purchase is fully paid and locked."
+                        >
+                            🔒 Locked
+                        </span>
 
-                                    <a
-                                        href="{{ route('fuel-customer-purchases.edit', $purchase) }}"
-                                        class="text-amber-600 dark:text-amber-400 text-sm font-medium hover:underline"
-                                    >
-                                        Edit
-                                    </a>
+                    @else
 
-                                    <form
-                                        action="{{ route('fuel-customer-purchases.destroy', $purchase) }}"
-                                        method="POST"
-                                        class="inline"
-                                        data-confirm="This will permanently delete the customer purchase and its items. This cannot be undone."
-                                        data-confirm-type="danger"
-                                        data-confirm-title="Delete this purchase?"
-                                    >
-                                        @csrf
-                                        @method('DELETE')
+                        {{-- Unpaid / Partial / Overpaid --}}
+                        <a
+                            href="{{ route('fuel-customer-purchases.edit', $purchase) }}"
+                            class="text-amber-600 dark:text-amber-400 text-sm font-medium hover:underline"
+                        >
+                            Edit
+                        </a>
 
-                                        <button
-                                            type="submit"
-                                            class="text-red-600 dark:text-red-400 text-sm font-medium hover:underline"
-                                        >
-                                            Delete
-                                        </button>
-                                    </form>
+                        <form
+                            action="{{ route('fuel-customer-purchases.destroy', $purchase) }}"
+                            method="POST"
+                            class="inline"
+                            data-confirm="This will permanently delete the customer purchase and its items."
+                            data-confirm-type="danger"
+                            data-confirm-title="Delete this purchase?"
+                        >
+                            @csrf
+                            @method('DELETE')
 
-                                </div>
+                            <button
+                                type="submit"
+                                class="text-red-600 dark:text-red-400 text-sm font-medium hover:underline"
+                            >
+                                Delete
+                            </button>
+                        </form>
 
-                            @endif
+                    @endif
 
-                        </td>
+                </div>
+            </td>
+
 
                     </tr>
 

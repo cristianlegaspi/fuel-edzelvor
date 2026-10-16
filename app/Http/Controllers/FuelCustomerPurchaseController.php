@@ -243,4 +243,17 @@ class FuelCustomerPurchaseController extends Controller
                 return $order;
             });
     }
+
+    public function details(FuelCustomerPurchase $fuelCustomerPurchase)
+        {
+            $fuelCustomerPurchase->load([
+                'items',
+                'payments',
+                'salesOrder',
+            ]);
+
+            return view('fuel.customer-purchases.details', [
+                'purchase' => $fuelCustomerPurchase,
+            ]);
+        }
 }
