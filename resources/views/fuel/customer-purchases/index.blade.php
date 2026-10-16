@@ -112,6 +112,39 @@
     @media (prefers-reduced-motion: reduce) {
         #customerPaymentModal, #customerPaymentPanel {transition:none !important}
     }
+
+    /* Compact desktop/tablet table; never push dashboard past viewport width. */
+    .customer-table-shell {width:100%;min-width:0;overflow:hidden}
+    .customer-table-scroll {width:100%;max-width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch}
+    .customer-purchases-table {width:100%;border-collapse:collapse;table-layout:auto}
+    .customer-purchases-table th {padding:12px 10px;white-space:nowrap;font-size:12px}
+    .customer-purchases-table td {padding:11px 10px;font-size:12px;vertical-align:middle}
+    .customer-purchases-table td.customer-col {min-width:145px;max-width:225px;white-space:normal;overflow-wrap:anywhere}
+    .customer-purchases-table td.customer-actions-col {min-width:190px;text-align:right}
+    .customer-table-actions {display:flex;flex-wrap:wrap;justify-content:flex-end;align-items:center;gap:6px}
+    .customer-table-actions .customer-action {font-size:11px;padding:7px 9px;min-height:32px}
+    @media (min-width:701px) and (max-width:1199px) {
+        .customer-purchases-table {min-width:880px}
+    }
+    @media (max-width:700px) {
+        .customer-table-shell {border:0!important;background:transparent!important;overflow:visible!important}
+        .customer-table-scroll {overflow:visible!important}
+        .customer-purchases-table,.customer-purchases-table tbody {display:block;width:100%}
+        .customer-purchases-table thead {display:none}
+        .customer-purchases-table tr.customer-record-row {display:block;margin:0 0 12px;padding:8px 14px;background:#fff;border:1px solid #e2e8f0;border-radius:12px;box-shadow:0 4px 12px rgba(15,23,42,.04)}
+        .dark .customer-purchases-table tr.customer-record-row {background:#111a2e;border-color:#334155}
+        .customer-purchases-table tr.customer-record-row td {display:flex;align-items:flex-start;justify-content:space-between;gap:12px;width:100%;min-width:0;max-width:none!important;padding:9px 0!important;border-bottom:1px solid #e2e8f0;text-align:right;white-space:normal!important;overflow-wrap:anywhere}
+        .dark .customer-purchases-table tr.customer-record-row td {border-bottom-color:#26354b}
+        .customer-purchases-table tr.customer-record-row td:last-child {border-bottom:0}
+        .customer-purchases-table tr.customer-record-row td::before {content:attr(data-label);flex:0 0 35%;text-align:left;font-size:11px;font-weight:700;color:#64748b}
+        .dark .customer-purchases-table tr.customer-record-row td::before {color:#94a3b8}
+        .customer-purchases-table tr.customer-record-row td.customer-actions-col {display:block;text-align:left}
+        .customer-purchases-table tr.customer-record-row td.customer-actions-col::before {display:block;margin-bottom:9px;content:'Actions'}
+        .customer-table-actions {justify-content:flex-start;gap:7px}
+        .customer-table-actions .customer-action {font-size:11px;padding:9px 11px}
+        .customer-purchases-table tr.customer-empty-row {display:block}
+        .customer-purchases-table tr.customer-empty-row td {display:block;text-align:center;padding:28px 14px}
+    }
 </style>
 
 @if(session('success'))
@@ -135,9 +168,9 @@
     <button type="submit" class="rounded-lg border border-slate-300 dark:border-slate-600 px-4 py-2 text-sm font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/60">Filter</button>
 </form>
 
-<div class="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden">
-    <div class="overflow-x-auto">
-        <table class="w-full text-sm">
+<div class="customer-table-shell rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden">
+    <div class="customer-table-scroll overflow-x-auto">
+        <table class="customer-purchases-table w-full text-sm">
             <thead class="text-left text-slate-400 dark:text-slate-500 bg-slate-50 dark:bg-slate-800 border-b border-slate-100 dark:border-slate-800">
                 <tr>
                     <th class="px-6 py-3 font-medium whitespace-nowrap">Customer</th>
@@ -159,23 +192,23 @@
                         $totalPaid = (float) $payments->sum('amount');
                         $balance = max(0, (float) $purchase->total_payables - $totalPaid);
                     @endphp
-                    <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/60">
-                        <td class="px-6 py-3 whitespace-nowrap font-medium">
+                    <tr class="customer-record-row hover:bg-slate-50 dark:hover:bg-slate-800/60">
+                        <td data-label="Customer" class="customer-col px-6 py-3 whitespace-nowrap font-medium">
                             @if($paid)
                                 <span class="text-slate-700 dark:text-slate-200">{{ $purchase->customer }}</span>
                             @else
                                 <a href="{{ route('fuel-customer-purchases.edit', $purchase) }}" class="text-amber-600 dark:text-amber-400 hover:underline">{{ $purchase->customer }}</a>
                             @endif
                         </td>
-                        <td class="px-6 py-3 whitespace-nowrap text-slate-600 dark:text-slate-300">{{ $purchase->sales_order_no }}</td>
-                        <td class="px-6 py-3 whitespace-nowrap text-slate-600 dark:text-slate-300">{{ number_format($purchase->total_liters, 2) }} L</td>
-                        <td class="px-6 py-3 whitespace-nowrap text-slate-600 dark:text-slate-300">₱{{ number_format($purchase->total_payables, 2) }}</td>
-                        <td class="px-6 py-3 whitespace-nowrap text-slate-600 dark:text-slate-300">₱{{ number_format($purchase->net_income, 2) }}</td>
-                        <td class="px-6 py-3 whitespace-nowrap">
+                        <td data-label="Sales Order" class="px-6 py-3 whitespace-nowrap text-slate-600 dark:text-slate-300">{{ $purchase->sales_order_no }}</td>
+                        <td data-label="Total Liters" class="px-6 py-3 whitespace-nowrap text-slate-600 dark:text-slate-300">{{ number_format($purchase->total_liters, 2) }} L</td>
+                        <td data-label="Payables" class="px-6 py-3 whitespace-nowrap text-slate-600 dark:text-slate-300">₱{{ number_format($purchase->total_payables, 2) }}</td>
+                        <td data-label="Net Income" class="px-6 py-3 whitespace-nowrap text-slate-600 dark:text-slate-300">₱{{ number_format($purchase->net_income, 2) }}</td>
+                        <td data-label="Status" class="px-6 py-3 whitespace-nowrap">
                             <x-badge :color="match($status) { 'paid'=>'green','partial'=>'yellow','overpaid'=>'blue',default=>'red' }">{{ ucfirst($status) }}</x-badge>
                         </td>
-                        <td class="px-4 py-3 whitespace-nowrap text-right">
-                            <div class="inline-flex items-center justify-end gap-2">
+                        <td data-label="Actions" class="customer-actions-col px-4 py-3 whitespace-nowrap text-right">
+                            <div class="customer-table-actions">
                                 @if($paid)
                                     <a class="customer-action customer-action--view" href="{{ route('fuel-customer-purchases.details', $purchase) }}">◉ View Details</a>
                                 @else
@@ -220,7 +253,7 @@
                                 <td class="px-3 py-3">{{ $payment->reference_no ?: '—' }}</td>
                                 <td class="px-3 py-3 whitespace-nowrap">
                                     @if($payment->proof_image)
-                                        <button type="button" class="text-amber-500 font-semibold hover:text-amber-400 hover:underline"
+                                        <button type="button" class="text-amber-600 dark:text-amber-400 font-medium hover:underline"
                                                 data-proof-url="{{ route('fuel-customer-payments.proof', $payment) }}">View Proof</button>
                                     @else
                                         <span class="text-slate-400">No image</span>
@@ -232,7 +265,7 @@
                         @endforelse
                     </template>
                 @empty
-                    <tr><td colspan="7" class="px-6 py-10 text-center text-slate-400">No customer purchases found.</td></tr>
+                    <tr class="customer-empty-row"><td colspan="7" class="px-6 py-10 text-center text-slate-400">No customer purchases found.</td></tr>
                 @endforelse
             </tbody>
         </table>
