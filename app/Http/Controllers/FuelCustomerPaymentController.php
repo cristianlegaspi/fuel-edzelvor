@@ -208,9 +208,9 @@ class FuelCustomerPaymentController extends Controller
                 ->withInput($request->except('proof_image'));
         }
 
-        return redirect()
-            ->route('fuel-customer-purchases.payments', $fuelCustomerPurchase)
-            ->with('success', 'Customer payment recorded successfully.');
+    return redirect()
+    ->route('fuel-customer-purchases.index')
+    ->with('success', 'Customer payment recorded successfully.');
     }
 
     /**
