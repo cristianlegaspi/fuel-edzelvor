@@ -68,6 +68,31 @@
 #supplierProofPreview{border-radius:7px;background:#d97706;color:#fff;padding:7px 10px;font-weight:700}
 #supplierProofRemove{border-radius:7px;background:#dc2626;color:#fff;padding:7px 10px;font-weight:700}
 @media(max-width:640px){.supplier-summary-row{gap:6px}.supplier-summary-card{padding:8px 6px}.supplier-summary-label{font-size:10px}.supplier-summary-value{font-size:clamp(10px,2.7vw,15px)}}
+/* Highly visible invalid proof warning in light and dark themes. */
+#supplierProofError.supplier-proof-alert {
+    display: flex !important;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 12px 14px;
+    border: 1px solid #ef4444 !important;
+    border-left: 4px solid #dc2626 !important;
+    border-radius: 10px;
+    background: #fef2f2 !important;
+    color: #991b1b !important;
+    font-size: 13px;
+    font-weight: 600;
+    line-height: 1.5;
+}
+.dark #supplierProofError.supplier-proof-alert {
+    background: #450a0a !important;
+    border-color: #f87171 !important;
+    color: #fecaca !important;
+}
+#supplierProofError[hidden] { display: none !important; }
+#supplierProofInput.supplier-file-invalid {
+    border: 2px solid #ef4444 !important;
+    outline: 1px solid rgba(239,68,68,.3);
+}
 </style>
 
 @if(session('success'))<div class="mb-4 rounded-lg border border-emerald-400/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-600 dark:text-emerald-400" role="status">{{ session('success') }}</div>@endif
@@ -140,7 +165,10 @@ $balance = max(0,(float)$order->net_amount - $totalPaid);
 <label class="block text-xs text-slate-500 dark:text-slate-400">Payment Method<select name="payment_method" class="mt-1 w-full rounded-lg border-slate-300 text-sm dark:border-slate-600"><option value="">Select Method</option>@foreach(['Cash','Check','Bank Transfer','Online Transfer','GCash','Others'] as $method)<option value="{{ $method }}" @selected(old('payment_method')===$method)>{{ $method }}</option>@endforeach</select></label>
 <label class="block text-xs text-slate-500 dark:text-slate-400">Reference No.<input name="reference_no" type="text" value="{{ old('reference_no') }}" class="mt-1 w-full rounded-lg border-slate-300 text-sm dark:border-slate-600"></label>
 </div>
-<div><label for="supplierProofInput" class="mb-1 block text-xs text-slate-500 dark:text-slate-400">Proof of Payment (image only)</label><input id="supplierProofInput" name="proof_image" type="file" accept=".jpg,.jpeg,.png,.webp,.gif,image/jpeg,image/png,image/webp,image/gif" class="w-full rounded-lg border border-slate-300 p-2 text-sm dark:border-slate-600"><p class="mt-1 text-xs text-slate-400">JPG, PNG, WEBP, GIF · Maximum 5 MB</p><div id="supplierProofSelected" class="mt-3 hidden items-center gap-3"><img id="supplierProofThumb" alt="Selected proof" class="h-14 w-14 rounded border object-cover"><button id="supplierProofPreview" type="button" class="text-sm font-semibold text-amber-500 hover:underline">Preview Image</button><button id="supplierProofRemove" type="button" class="text-sm font-semibold text-red-500 hover:underline">Remove</button></div><p id="supplierProofError" class="mt-2 hidden text-xs text-red-500" role="alert"></p></div>
+<div><label for="supplierProofInput" class="mb-1 block text-xs text-slate-500 dark:text-slate-400">Proof of Payment (image only)</label><input id="supplierProofInput" name="proof_image" type="file" accept=".jpg,.jpeg,.png,.webp,.gif,image/jpeg,image/png,image/webp,image/gif" class="w-full rounded-lg border border-slate-300 p-2 text-sm dark:border-slate-600"><p class="mt-1 text-xs text-slate-400">JPG, PNG, WEBP, GIF · Maximum 5 MB</p><div id="supplierProofSelected" class="mt-3 hidden items-center gap-3"><img id="supplierProofThumb" alt="Selected proof" class="h-14 w-14 rounded border object-cover"><button id="supplierProofPreview" type="button" class="text-sm font-semibold text-amber-500 hover:underline">Preview Image</button><button id="supplierProofRemove" type="button" class="text-sm font-semibold text-red-500 hover:underline">Remove</button></div><div id="supplierProofError" class="mt-3" role="alert" aria-live="assertive" hidden>
+  <span aria-hidden="true" style="font-size:19px;line-height:1.2">⚠</span>
+  <span id="supplierProofErrorText"></span>
+</div></div>
 <div class="flex justify-end gap-2 border-t border-slate-200 pt-4 dark:border-slate-700"><button type="button" id="supplierModalCancel" class="rounded-lg border border-slate-300 px-4 py-2 text-sm text-slate-700 hover:bg-slate-100 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-800">Cancel</button><button id="supplierModalSubmit" type="submit" style="background:#059669;color:#fff" class="rounded-lg px-5 py-2 text-sm font-bold shadow-sm transition hover:brightness-110 disabled:opacity-60">Save Payment</button></div>
 </form></section>
 </div></div></div>
@@ -153,15 +181,71 @@ $balance = max(0,(float)$order->net_amount - $totalPaid);
  let lastTrigger=null,oldOverflow='',previewUrl=null,closeTimer=null,fileReadToken=0;
  // Move outside transformed or clipped layout ancestors.
  document.body.appendChild(modal);const proofOverlay=document.getElementById('paymentProofModal');if(proofOverlay&&proofOverlay.parentElement!==document.body)document.body.appendChild(proofOverlay);
- function clearFile(){fileReadToken++;file.value='';previewUrl=null;thumb.removeAttribute('src');selected.classList.add('hidden');selected.classList.remove('flex');err.textContent='';err.classList.add('hidden')}
+ function clearFile(){fileReadToken++;file.value='';previewUrl=null;thumb.removeAttribute('src');selected.classList.add('hidden');selected.classList.remove('flex');err.hidden=true;err.classList.remove('supplier-proof-alert');file.classList.remove('supplier-file-invalid');document.getElementById('supplierProofErrorText').textContent=''}
  function close(){if(!modal.classList.contains('supplier-open'))return;modal.classList.remove('supplier-open');modal.setAttribute('aria-hidden','true');document.body.style.overflow=oldOverflow;if(closeTimer)clearTimeout(closeTimer);closeTimer=setTimeout(()=>{clearFile();lastTrigger?.focus()},230)}
  function open(btn){if(closeTimer)clearTimeout(closeTimer);lastTrigger=btn;const id=btn.dataset.id,locked=['paid','overpaid'].includes(btn.dataset.status);const tpl=document.getElementById('supplier-history-'+id);body.replaceChildren();if(tpl)body.appendChild(tpl.content.cloneNode(true));form.reset();clearFile();form.action=btn.dataset.action;document.getElementById('supplierOrderId').value=id;document.getElementById('supplierModalSubtitle').textContent=btn.dataset.supplier+' · '+btn.dataset.order;document.getElementById('supplierModalNet').textContent='₱'+btn.dataset.net;document.getElementById('supplierModalPaid').textContent='₱'+btn.dataset.paid;document.getElementById('supplierModalBalance').textContent='₱'+btn.dataset.balance;document.getElementById('supplierModalLocked').classList.toggle('hidden',!locked);document.getElementById('supplierPaymentFormSection').classList.toggle('hidden',locked);oldOverflow=document.body.style.overflow;document.body.style.overflow='hidden';modal.classList.add('supplier-open');modal.setAttribute('aria-hidden','false');document.getElementById('supplierModalClose').focus()}
  document.querySelectorAll('[data-supplier-open]').forEach(btn=>btn.addEventListener('click',()=>open(btn)));
  document.getElementById('supplierModalClose').addEventListener('click',close);document.getElementById('supplierModalCancel').addEventListener('click',close);modal.addEventListener('click',e=>{if(e.target===modal)close()});document.addEventListener('keydown',e=>{if(e.key==='Escape' && modal.classList.contains('supplier-open') && document.getElementById('paymentProofModal')?.classList.contains('hidden'))close()});
  body.addEventListener('click',e=>{const b=e.target.closest('[data-supplier-proof-url]');if(b && typeof window.openPaymentProof==='function')window.openPaymentProof(b.dataset.supplierProofUrl)});
-   function clearPreview(){fileReadToken++;previewUrl=null;thumb.removeAttribute('src');selected.classList.add('hidden');selected.classList.remove('flex');err.textContent='';err.classList.add('hidden')}
-  file.addEventListener('change',()=>{const f=file.files?.[0];clearPreview();if(!f)return;if(!['image/jpeg','image/png','image/webp','image/gif'].includes(f.type)||f.size>5*1024*1024){err.textContent='Please select a JPG, PNG, WEBP, or GIF image no larger than 5 MB.';err.classList.remove('hidden');file.value='';return}const token=++fileReadToken;const reader=new FileReader();reader.onload=()=>{if(token!==fileReadToken)return;previewUrl=String(reader.result||'');thumb.src=previewUrl;selected.classList.remove('hidden');selected.classList.add('flex')};reader.onerror=()=>{if(token!==fileReadToken)return;err.textContent='Unable to read image. Try another file.';err.classList.remove('hidden');file.value=''};reader.readAsDataURL(f)});
-  thumb.addEventListener('error',()=>{if(file.files?.length){err.textContent='Image preview unavailable; check the browser img-src Content Security Policy.';err.classList.remove('hidden')}});
+   function hideFileError() {
+    err.hidden = true;
+    err.classList.remove('supplier-proof-alert');
+    file.classList.remove('supplier-file-invalid');
+    document.getElementById('supplierProofErrorText').textContent = '';
+  }
+  function showFileError(message) {
+    document.getElementById('supplierProofErrorText').textContent = message;
+    err.hidden = false;
+    err.classList.add('supplier-proof-alert');
+    file.classList.add('supplier-file-invalid');
+  }
+  function clearPreview() {
+    fileReadToken++;
+    previewUrl = null;
+    thumb.removeAttribute('src');
+    selected.classList.add('hidden');
+    selected.classList.remove('flex');
+    hideFileError();
+  }
+  file.addEventListener('change', () => {
+    const f = file.files?.[0];
+    clearPreview();
+    if (!f) return;
+
+    const allowedTypes = ['image/jpeg','image/png','image/webp','image/gif'];
+    const allowedExtensions = /\.(jpe?g|png|webp|gif)$/i;
+    if (!allowedTypes.includes(f.type) || !allowedExtensions.test(f.name)) {
+      showFileError('Invalid file format! Only JPG, PNG, WEBP, and GIF images are accepted. PDF, Word, Excel, and other files are not allowed.');
+      file.value = '';
+      return;
+    }
+    if (f.size > 5 * 1024 * 1024) {
+      showFileError('File is too large! Maximum allowed image size is 5 MB. Please choose a smaller image.');
+      file.value = '';
+      return;
+    }
+
+    const token = ++fileReadToken;
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (token !== fileReadToken) return;
+      previewUrl = String(reader.result || '');
+      thumb.src = previewUrl;
+      selected.classList.remove('hidden');
+      selected.classList.add('flex');
+    };
+    reader.onerror = () => {
+      if (token !== fileReadToken) return;
+      showFileError('Unable to read the selected image. Please choose another image.');
+      file.value = '';
+    };
+    reader.readAsDataURL(f);
+  });
+  thumb.addEventListener('error', () => {
+    if (file.files?.length) {
+      showFileError('Image preview is unavailable. Check the browser image Content Security Policy (img-src data:).');
+    }
+  });
 document.getElementById('supplierProofRemove').addEventListener('click',clearFile);document.getElementById('supplierProofPreview').addEventListener('click',()=>{if(previewUrl&&typeof window.openPaymentProof==='function')window.openPaymentProof(previewUrl)});
  form.addEventListener('submit',e=>{const btn=[...document.querySelectorAll('[data-supplier-open]')].find(b=>b.dataset.id===document.getElementById('supplierOrderId').value);if(!btn||['paid','overpaid'].includes(btn.dataset.status)){e.preventDefault();return}document.getElementById('supplierModalSubmit').disabled=true});
  @if($errors->any() && old('payment_order_id'))

@@ -102,6 +102,11 @@
     #customerPaymentSubmit {background:#059669!important;color:#fff!important;border:1px solid #047857;box-shadow:0 3px 12px rgba(5,150,105,.25);transition:background-color .2s,transform .2s,box-shadow .2s}
     #customerPaymentSubmit:hover:not(:disabled) {background:#047857!important;transform:translateY(-1px);box-shadow:0 6px 18px rgba(5,150,105,.35)}
     #customerPaymentSubmit:disabled {opacity:.65;cursor:wait}
+    /* Visible validation alert: not dependent on Tailwind compilation. */
+    #customerProofError {display:none;align-items:flex-start;gap:10px;padding:12px 14px;margin-top:10px;background:#fef2f2!important;border:1px solid #ef4444!important;border-left:5px solid #dc2626!important;border-radius:10px;color:#b91c1c!important;font-size:13px;font-weight:700;line-height:1.5;box-shadow:0 3px 12px rgba(220,38,38,.10)}
+    #customerProofError:not(.hidden) {display:flex!important}
+    .dark #customerProofError {background:#450a0a!important;border-color:#f87171!important;color:#fecaca!important}
+    #customerProofErrorIcon {font-size:18px;line-height:1.2;flex:none}
     #customerProofSelected {background:rgba(16,185,129,.06);border:1px solid rgba(16,185,129,.25);border-radius:10px;padding:10px;flex-wrap:wrap}
     #customerProofThumb {display:block;width:64px;height:64px;object-fit:cover;border:1px solid #94a3b8;border-radius:8px;background:#f8fafc;color:#475569}
     .dark #customerProofThumb {background:#1e293b;color:#cbd5e1}
@@ -334,7 +339,7 @@
                             <button type="button" id="customerProofPreview" class="text-sm font-semibold">Preview Image</button>
                             <button type="button" id="customerProofRemove" class="text-sm font-semibold">Remove</button>
                         </div>
-                        <p id="customerProofError" class="mt-1 hidden text-xs text-red-500" role="alert"></p>
+                        <div id="customerProofError" class="hidden" role="alert" aria-live="assertive"><span id="customerProofErrorIcon" aria-hidden="true">⚠</span><span id="customerProofErrorMessage"></span></div>
                     </div>
                     <div class="flex justify-end gap-2 border-t border-slate-200 dark:border-slate-700 pt-4">
                         <button type="button" id="customerPaymentCancel" class="rounded-lg border border-slate-300 dark:border-slate-600 px-4 py-2 text-sm text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800">Cancel</button>
@@ -367,6 +372,9 @@
     const selected = document.getElementById('customerProofSelected');
     const thumb = document.getElementById('customerProofThumb');
     const fileError = document.getElementById('customerProofError');
+    const fileErrorMessage = document.getElementById('customerProofErrorMessage');
+    function showProofError(message) { fileErrorMessage.textContent = message; fileError.classList.remove('hidden'); }
+    function hideProofError() { fileErrorMessage.textContent = ''; fileError.classList.add('hidden'); }
     const formSection = document.getElementById('customerPaymentFormSection');
     const lockedMessage = document.getElementById('customerPaymentLocked');
     let previewUrl = null;
@@ -380,8 +388,7 @@
         thumb.removeAttribute('src');
         selected.classList.add('hidden');
         selected.classList.remove('flex');
-        fileError.classList.add('hidden');
-        fileError.textContent = '';
+        hideProofError();
     }
     function closeModal() {
         if (!modal.classList.contains('is-open')) return;
@@ -438,17 +445,22 @@
         const token = ++fileReadToken;
         previewUrl = null;
         thumb.removeAttribute('src');
-        fileError.classList.add('hidden');
-        fileError.textContent = '';
+        hideProofError();
         selected.classList.add('hidden');
         selected.classList.remove('flex');
 
         const file = fileInput.files?.[0];
         if (!file) return;
-        if (!['image/jpeg', 'image/png', 'image/webp', 'image/gif'].includes(file.type)
-            || file.size > 5 * 1024 * 1024) {
-            fileError.textContent = 'Please choose a JPG, PNG, WEBP, or GIF image no larger than 5 MB.';
-            fileError.classList.remove('hidden');
+        const allowedMimeTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+        const allowedExtensions = ['jpg', 'jpeg', 'png', 'webp', 'gif'];
+        const extension = (file.name.split('.').pop() || '').toLowerCase();
+        if (!allowedMimeTypes.includes(file.type) || !allowedExtensions.includes(extension)) {
+            showProofError('Invalid file format! Only JPG, PNG, WEBP, and GIF images are accepted. PDF, Word, Excel, and other files are not allowed.');
+            fileInput.value = '';
+            return;
+        }
+        if (file.size > 5 * 1024 * 1024) {
+            showProofError('File too large! Maximum allowed image size is 5 MB. Please select a smaller JPG, PNG, WEBP, or GIF image.');
             fileInput.value = '';
             return;
         }
@@ -463,16 +475,14 @@
         };
         reader.onerror = () => {
             if (token !== fileReadToken) return;
-            fileError.textContent = 'Cannot read the selected image. Please choose another file.';
-            fileError.classList.remove('hidden');
+            showProofError('Cannot read the selected image. Please choose another file.');
             fileInput.value = '';
         };
         reader.readAsDataURL(file);
     });
     thumb.addEventListener('error', () => {
         if (!fileInput.files?.length) return;
-        fileError.textContent = 'Image preview is blocked or this file cannot be displayed. Check the browser Content Security Policy (img-src data:).';
-        fileError.classList.remove('hidden');
+        showProofError('Image preview is blocked or this file cannot be displayed. Check the browser Content Security Policy (img-src data:).');
     });
     document.getElementById('customerProofPreview').addEventListener('click', () => {
         if (previewUrl && typeof window.openPaymentProof === 'function') window.openPaymentProof(previewUrl);
