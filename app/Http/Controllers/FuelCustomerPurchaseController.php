@@ -99,6 +99,12 @@ class FuelCustomerPurchaseController extends Controller
 
     public function edit(FuelCustomerPurchase $fuelCustomerPurchase)
     {
+        if (strtolower(trim((string) $fuelCustomerPurchase->status)) === 'paid') {
+             return redirect()
+        ->route('fuel-customer-purchases.index')
+        ->with('error', 'This customer purchase is already fully paid and cannot be edited.');
+}
+
         $fuelCustomerPurchase->load([
             'items',
             'payments' => fn ($q) => $q->latest('payment_date'),
@@ -116,6 +122,11 @@ class FuelCustomerPurchaseController extends Controller
 
     public function update(Request $request, FuelCustomerPurchase $fuelCustomerPurchase)
     {
+        if (strtolower(trim((string) $fuelCustomerPurchase->status)) === 'paid') {
+         return redirect()
+        ->route('fuel-customer-purchases.index')
+        ->with('error', 'Fully paid customer purchases cannot be modified.');
+}
         $validated = $this->validatePurchase($request);
 
         try {
@@ -176,6 +187,12 @@ class FuelCustomerPurchaseController extends Controller
 
     public function destroy(FuelCustomerPurchase $fuelCustomerPurchase)
     {
+
+        if (strtolower(trim((string) $fuelCustomerPurchase->status)) === 'paid') {
+         return redirect()
+        ->route('fuel-customer-purchases.index')
+        ->with('error', 'Fully paid customer purchases cannot be deleted.');
+}
         $fuelCustomerPurchase->delete();
 
         return redirect()->route('fuel-customer-purchases.index')->with('success', 'Customer purchase deleted.');
