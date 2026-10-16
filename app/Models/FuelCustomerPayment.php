@@ -11,54 +11,34 @@ class FuelCustomerPayment extends Model
 {
     use Auditable, SoftDeletes;
 
+    /** Temporary audit context, never stored as a payment attribute. */
+    public ?string $auditEditReason = null;
+
     protected $fillable = [
-        'customer_payment_tracking_no',
-        'fuel_customer_purchase_id',
-        'payment_date',
-        'amount',
-        'payment_method',
-        'reference_no',
-        'remarks',
-        'proof_image',
+        'customer_payment_tracking_no', 'fuel_customer_purchase_id',
+        'payment_date', 'amount', 'payment_method', 'reference_no',
+        'remarks', 'proof_image',
     ];
 
-    protected $casts = [
-        'payment_date' => 'date',
-        'amount' => 'decimal:2',
-    ];
+    protected $casts = ['payment_date' => 'date', 'amount' => 'decimal:2'];
 
     protected static function booted(): void
     {
-        static::created(function (FuelCustomerPayment $payment) {
-            if (! $payment->customer_payment_tracking_no) {
-                $payment->updateQuietly([
-                    'customer_payment_tracking_no' => self::generateTrackingNo($payment),
-                ]);
+        static::created(function (self $payment) {
+            if (!$payment->customer_payment_tracking_no) {
+                $payment->updateQuietly(['customer_payment_tracking_no' => self::generateTrackingNo($payment)]);
             }
-
             $payment->customerPurchase?->recalculateTotals();
         });
-
-        static::saved(function (FuelCustomerPayment $payment) {
-            $payment->customerPurchase?->recalculateTotals();
-        });
-
-        static::deleted(function (FuelCustomerPayment $payment) {
-            $payment->customerPurchase?->recalculateTotals();
-        });
-
-        static::restored(function (FuelCustomerPayment $payment) {
-            $payment->customerPurchase?->recalculateTotals();
-        });
+        static::saved(fn(self $payment) => $payment->customerPurchase?->recalculateTotals());
+        static::deleted(fn(self $payment) => $payment->customerPurchase?->recalculateTotals());
+        static::restored(fn(self $payment) => $payment->customerPurchase?->recalculateTotals());
     }
 
-    public static function generateTrackingNo(FuelCustomerPayment $payment): string
+    public static function generateTrackingNo(self $payment): string
     {
-        $date = $payment->created_at
-            ? $payment->created_at->format('Ymd')
-            : now()->format('Ymd');
-
-        return 'CPAY-' . $date . '-' . str_pad((string) $payment->id, 6, '0', STR_PAD_LEFT);
+        $date = $payment->created_at?->format('Ymd') ?? now()->format('Ymd');
+        return 'CPAY-'.$date.'-'.str_pad((string) $payment->id, 6, '0', STR_PAD_LEFT);
     }
 
     public function customerPurchase(): BelongsTo

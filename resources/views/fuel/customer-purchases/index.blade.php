@@ -107,6 +107,11 @@
     #customerProofError:not(.hidden) {display:flex!important}
     .dark #customerProofError {background:#450a0a!important;border-color:#f87171!important;color:#fecaca!important}
     #customerProofErrorIcon {font-size:18px;line-height:1.2;flex:none}
+    #customerReferenceError, #customerPaymentServerErrors {display:none;align-items:flex-start;gap:9px;padding:10px 12px;margin-top:8px;background:#fef2f2!important;border:1px solid #ef4444!important;border-left:4px solid #dc2626!important;border-radius:9px;color:#b91c1c!important;font-size:12px;font-weight:700;line-height:1.5;overflow-wrap:anywhere}
+    #customerReferenceError:not(.hidden), #customerPaymentServerErrors:not(.hidden) {display:flex!important}
+    .dark #customerReferenceError, .dark #customerPaymentServerErrors {background:#450a0a!important;border-color:#f87171!important;color:#fecaca!important}
+    #customerReferenceNo.customer-input-invalid {border:2px solid #ef4444!important;outline:none}
+
     #customerProofSelected {background:rgba(16,185,129,.06);border:1px solid rgba(16,185,129,.25);border-radius:10px;padding:10px;flex-wrap:wrap}
     #customerProofThumb {display:block;width:64px;height:64px;object-fit:cover;border:1px solid #94a3b8;border-radius:8px;background:#f8fafc;color:#475569}
     .dark #customerProofThumb {background:#1e293b;color:#cbd5e1}
@@ -150,16 +155,26 @@
         .customer-purchases-table tr.customer-empty-row {display:block}
         .customer-purchases-table tr.customer-empty-row td {display:block;text-align:center;padding:28px 14px}
     }
+
+ .customer-proof-blue{display:inline-flex;align-items:center;justify-content:center;white-space:nowrap;background:#2563eb!important;color:#fff!important;border-radius:7px;padding:7px 10px;font-weight:700;font-size:11px;transition:background .2s,transform .2s}
+ .customer-proof-blue:hover{background:#1d4ed8!important;transform:translateY(-1px)}
+ /* Customer payment correction and audit history */
+.customer-history-action{display:inline-flex;align-items:center;justify-content:center;border:0;border-radius:7px;padding:6px 9px;font-size:11px;font-weight:700;color:#fff!important;cursor:pointer;white-space:nowrap}
+.customer-history-action--edit{background:#d97706}.customer-history-action--edit:hover{background:#b45309}
+.customer-history-action--audit{background:#475569}.customer-history-action--audit:hover{background:#334155}
+.customer-history-buttons{display:flex;align-items:center;flex-wrap:wrap;gap:5px}
+.customer-edit-overlay{position:fixed;inset:0;z-index:9200;background:rgba(2,6,23,.8);backdrop-filter:blur(3px);padding:12px;display:flex;align-items:center;justify-content:center;opacity:0;visibility:hidden;pointer-events:none;transition:opacity .2s,visibility .2s}
+.customer-edit-overlay.is-open{opacity:1;visibility:visible;pointer-events:auto}
+.customer-edit-panel{display:flex;flex-direction:column;width:min(670px,100%);max-height:90dvh;overflow:hidden;border-radius:15px;border:1px solid #475569;background:#0f172a;color:#e2e8f0;transform:scale(.97) translateY(10px);transition:transform .2s;box-shadow:0 25px 60px #0007}
+.customer-edit-overlay.is-open .customer-edit-panel{transform:scale(1) translateY(0)}
+.customer-edit-field{width:100%;min-width:0;padding:10px;border-radius:8px;border:1px solid #475569;background:#1e293b;color:white;font-size:13px}
+.customer-edit-field:focus{outline:2px solid #38bdf8;outline-offset:1px}
+.customer-audit-table{width:100%;border-collapse:collapse;font-size:12px}.customer-audit-table td,.customer-audit-table th{padding:8px;text-align:left;border-bottom:1px solid #334155;vertical-align:top;overflow-wrap:anywhere}
+@media(max-width:640px){.customer-edit-overlay{padding:7px}.customer-edit-panel{max-height:95dvh}.customer-history-buttons{justify-content:flex-start}}
 </style>
 
 @if(session('success'))
     <div class="mb-4 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-500" role="status">{{ session('success') }}</div>
-@endif
-@if($errors->any())
-    <div class="mb-4 rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-400" role="alert">
-        <div class="font-semibold">Payment could not be saved:</div>
-        <ul class="mt-1 list-disc pl-5">@foreach($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul>
-    </div>
 @endif
 
 <form method="GET" class="mb-4 flex flex-wrap gap-3">
@@ -258,15 +273,35 @@
                                 <td class="px-3 py-3">{{ $payment->reference_no ?: '—' }}</td>
                                 <td class="px-3 py-3 whitespace-nowrap">
                                     @if($payment->proof_image)
-                                        <button type="button" class="text-amber-600 dark:text-amber-400 font-medium hover:underline"
+                                        <button type="button" class="customer-proof-blue"
                                                 data-proof-url="{{ route('fuel-customer-payments.proof', $payment) }}">View Proof</button>
                                     @else
                                         <span class="text-slate-400">No image</span>
                                     @endif
                                 </td>
+                                <td class="px-3 py-3">
+                                    <div class="customer-history-buttons">
+                                        @if(auth()->user()?->isAdminOrAbove())
+                                            <button type="button" class="customer-history-action customer-history-action--edit"
+                                                data-payment-edit
+                                                data-url="{{ route('fuel-customer-payments.update', $payment) }}"
+                                                data-tracking="{{ $payment->customer_payment_tracking_no }}"
+                                                data-date="{{ $payment->payment_date ? \Illuminate\Support\Carbon::parse($payment->payment_date)->format('Y-m-d') : '' }}"
+                                                data-amount="{{ $payment->amount }}"
+                                                data-edit-max="{{ number_format(max(0,(float)$purchase->total_payables - ($totalPaid - (float)$payment->amount)), 2, '.', '') }}"
+                                                data-method="{{ $payment->payment_method }}"
+                                                data-reference="{{ $payment->reference_no }}"
+                                                data-remarks="{{ $payment->remarks }}"
+                                                data-proof="{{ $payment->proof_image ? route('fuel-customer-payments.proof', $payment) : '' }}">✎ Edit</button>
+                                        @endif
+                                        <button type="button" class="customer-history-action customer-history-action--audit"
+                                            data-payment-audit="{{ route('fuel-customer-payments.history', $payment) }}"
+                                            data-tracking="{{ $payment->customer_payment_tracking_no }}">History</button>
+                                    </div>
+                                </td>
                             </tr>
                         @empty
-                            <tr><td colspan="6" class="px-3 py-8 text-center text-slate-400">No payments recorded yet.</td></tr>
+                            <tr><td colspan="7" class="px-3 py-8 text-center text-slate-400">No payments recorded yet.</td></tr>
                         @endforelse
                     </template>
                 @empty
@@ -299,7 +334,7 @@
                 <div class="overflow-x-auto rounded-lg border border-slate-200 dark:border-slate-700">
                     <table class="min-w-[750px] w-full text-xs text-slate-700 dark:text-slate-300">
                         <thead class="bg-slate-100 dark:bg-slate-800 text-left text-slate-500 dark:text-slate-400">
-                            <tr><th class="px-3 py-3">Tracking No.</th><th class="px-3 py-3">Date</th><th class="px-3 py-3">Amount</th><th class="px-3 py-3">Method</th><th class="px-3 py-3">Reference</th><th class="px-3 py-3">Proof</th></tr>
+                            <tr><th class="px-3 py-3">Tracking No.</th><th class="px-3 py-3">Date</th><th class="px-3 py-3">Amount</th><th class="px-3 py-3">Method</th><th class="px-3 py-3">Reference</th><th class="px-3 py-3">Proof</th><th class="px-3 py-3">Actions</th></tr>
                         </thead>
                         <tbody id="customerPaymentHistoryBody"></tbody>
                     </table>
@@ -310,24 +345,27 @@
                 <h3 class="mb-3 text-sm font-semibold text-slate-900 dark:text-white">Add Customer Payment</h3>
                 <form id="customerPaymentForm" method="POST" action="" enctype="multipart/form-data" class="space-y-4">
                     @csrf
+                    <div id="customerPaymentServerErrors" class="hidden" role="alert" aria-live="assertive"><span aria-hidden="true">⚠</span><span id="customerPaymentServerErrorsMessage"></span></div>
+                    <input type="hidden" id="customerMaxAdditional" value="0">
                     <input type="hidden" name="payment_purchase_id" id="customerPaymentPurchaseId">
                     <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
                         <label class="block text-xs text-slate-500 dark:text-slate-400">Payment Date
                             <input name="payment_date" type="date" value="{{ old('payment_date', now()->toDateString()) }}" class="mt-1 w-full rounded-lg border-slate-300 dark:border-slate-600 text-sm">
                         </label>
                         <label class="block text-xs text-slate-500 dark:text-slate-400">Amount
-                            <input name="amount" type="number" step="0.01" min="0.01" required value="{{ old('amount') }}" class="mt-1 w-full rounded-lg border-slate-300 dark:border-slate-600 text-sm">
+                            <input id="customerAddAmount" name="amount" type="number" step="0.01" min="0.01" required value="{{ old('amount') }}" class="mt-1 w-full rounded-lg border-slate-300 dark:border-slate-600 text-sm">
                         </label>
                         <label class="block text-xs text-slate-500 dark:text-slate-400">Payment Method
-                            <select name="payment_method" class="mt-1 w-full rounded-lg border-slate-300 dark:border-slate-600 text-sm">
+                            <select name="payment_method" required aria-required="true" class="mt-1 w-full rounded-lg border-slate-300 dark:border-slate-600 text-sm">
                                 <option value="">Select Method</option>
                                 @foreach(['Cash','Check','Bank Transfer','Online Transfer','GCash','Others'] as $method)
                                     <option value="{{ $method }}" @selected(old('payment_method') === $method)>{{ $method }}</option>
                                 @endforeach
                             </select>
                         </label>
-                        <label class="block text-xs text-slate-500 dark:text-slate-400">Reference No.
-                            <input name="reference_no" type="text" value="{{ old('reference_no') }}" class="mt-1 w-full rounded-lg border-slate-300 dark:border-slate-600 text-sm">
+                        <label class="block text-xs text-slate-500 dark:text-slate-400">Reference No. <span class="text-red-500">*</span>
+                            <input id="customerReferenceNo" name="reference_no" type="text" required maxlength="255" aria-describedby="customerReferenceError" value="{{ old('reference_no') }}" class="mt-1 w-full rounded-lg border-slate-300 dark:border-slate-600 text-sm">
+                            <span id="customerReferenceError" class="hidden" role="alert" aria-live="polite"><span aria-hidden="true">⚠</span><span id="customerReferenceErrorMessage"></span></span>
                         </label>
                     </div>
                     <div>
@@ -349,6 +387,55 @@
             </section>
         </div>
     </div>
+</div>
+
+
+{{-- Payment corrections and history: outside financial modal for proper layering. --}}
+@if(auth()->user()?->isAdminOrAbove())
+<div id="customerEditPaymentOverlay" class="customer-edit-overlay" role="dialog" aria-modal="true" aria-labelledby="customerEditPaymentTitle" aria-hidden="true">
+ <div class="customer-edit-panel">
+  <header class="flex items-center justify-between border-b border-slate-700 p-4">
+    <div><h3 id="customerEditPaymentTitle" class="font-bold">Edit Customer Payment</h3><p id="customerEditTracking" class="mt-1 text-xs text-slate-400"></p></div>
+    <button id="customerEditClose" type="button" class="rounded p-2 text-xl" aria-label="Close">&times;</button>
+  </header>
+  <div class="min-h-0 flex-1 overflow-y-auto p-4">
+    <p class="mb-3 rounded-lg border border-amber-600/50 bg-amber-900/20 p-3 text-xs text-amber-200">Financial correction: changing the amount may recalculate purchase totals. All changes and the reason are recorded in Audit Logs.</p>
+    <form id="customerEditPaymentForm" method="POST" enctype="multipart/form-data" class="space-y-3">@csrf @method('PATCH')
+      <input type="hidden" name="payment_purchase_id" id="customerEditPurchaseId">
+      <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <label class="text-xs">Payment Date<input id="customerEditDate" name="payment_date" type="date" class="customer-edit-field mt-1"></label>
+        <label class="text-xs">Amount (₱)<input id="customerEditAmount" name="amount" type="number" required min="0.01" step="0.01" class="customer-edit-field mt-1"><span id="customerEditMaxHelp" class="mt-1 block text-emerald-300"></span></label>
+        <label class="text-xs">Payment Method<select id="customerEditMethod" name="payment_method" class="customer-edit-field mt-1"><option value="">Select Method</option>@foreach(['Cash','Check','Bank Transfer','Online Transfer','GCash','Others'] as $method)<option value="{{ $method }}">{{ $method }}</option>@endforeach</select></label>
+        <label class="text-xs">Reference No.<input id="customerEditReference" name="reference_no" type="text" class="customer-edit-field mt-1"></label>
+      </div>
+      <label class="block text-xs">Remarks<textarea id="customerEditRemarks" name="remarks" rows="2" class="customer-edit-field mt-1"></textarea></label>
+      <label class="block text-xs">Reason for Editing <span class="text-red-400">*</span><textarea id="customerEditReason" name="edit_reason" required minlength="10" maxlength="1000" rows="2" placeholder="Explain what was incorrect and why it must be corrected..." class="customer-edit-field mt-1"></textarea></label>
+      <label class="block text-xs">Replace Receipt (optional)<input id="customerEditProofInput" name="proof_image" type="file" accept=".jpg,.jpeg,.png,.webp,.gif,image/jpeg,image/png,image/webp,image/gif" class="customer-edit-field mt-1"><span class="mt-1 block text-slate-400">JPG, PNG, WEBP, GIF · Maximum 5 MB. Existing proof remains unless replaced.</span></label>
+      <p id="customerEditReceiptWarning" class="hidden rounded-lg border border-red-500 bg-red-950/50 p-3 text-sm font-semibold text-red-300" role="alert"></p>
+      <div id="customerEditOriginalProof" class="hidden text-xs"><button type="button" id="customerEditOriginalButton" class="text-sky-400 hover:underline">View existing receipt</button></div>
+      <footer class="flex justify-end gap-2 border-t border-slate-700 pt-3"><button type="button" id="customerEditCancel" class="rounded-lg border border-slate-600 px-4 py-2 text-sm">Cancel</button>
+<button
+    type="submit"
+    id="customerEditSave"
+    style="background-color: #059669 !important; color: #ffffff !important;"
+    class="rounded-lg px-6 py-2.5 text-sm font-bold
+           shadow-md transition-all duration-200
+           hover:brightness-110 hover:shadow-lg
+           disabled:cursor-not-allowed disabled:opacity-60"
+>
+    Save Correction
+</button>
+</footer>
+    </form>
+  </div>
+ </div>
+</div>
+@endif
+<div id="customerAuditOverlay" class="customer-edit-overlay" role="dialog" aria-modal="true" aria-labelledby="customerAuditTitle" aria-hidden="true">
+ <div class="customer-edit-panel">
+  <header class="flex items-center justify-between border-b border-slate-700 p-4"><div><h3 id="customerAuditTitle" class="font-bold">Customer Payment Edit History</h3><p id="customerAuditTracking" class="mt-1 text-xs text-slate-400"></p></div><button type="button" id="customerAuditClose" class="p-2 text-xl" aria-label="Close">&times;</button></header>
+  <div class="min-h-0 flex-1 overflow-y-auto p-4"><div id="customerAuditContent" class="text-sm">Loading…</div></div>
+ </div>
 </div>
 
 {{-- Your existing draggable / resizable / wheel-zoom image modal --}}
@@ -373,6 +460,22 @@
     const thumb = document.getElementById('customerProofThumb');
     const fileError = document.getElementById('customerProofError');
     const fileErrorMessage = document.getElementById('customerProofErrorMessage');
+    const referenceInput = document.getElementById('customerReferenceNo');
+    const referenceError = document.getElementById('customerReferenceError');
+    const referenceErrorMessage = document.getElementById('customerReferenceErrorMessage');
+    const serverErrors = document.getElementById('customerPaymentServerErrors');
+    const serverErrorsMessage = document.getElementById('customerPaymentServerErrorsMessage');
+    function showReferenceError(message) { referenceErrorMessage.textContent = message; referenceError.classList.remove('hidden'); referenceInput.classList.add('customer-input-invalid'); referenceInput.setAttribute('aria-invalid', 'true'); }
+    function hideReferenceError() { referenceErrorMessage.textContent = ''; referenceError.classList.add('hidden'); referenceInput.classList.remove('customer-input-invalid'); referenceInput.removeAttribute('aria-invalid'); }
+    function showServerErrors(message) { serverErrorsMessage.textContent = message; serverErrors.classList.remove('hidden'); }
+    function hideServerErrors() { serverErrorsMessage.textContent = ''; serverErrors.classList.add('hidden'); }
+    form.elements['payment_method'].addEventListener('change', hideServerErrors);
+    form.elements['payment_method'].addEventListener('invalid', event => {
+        event.preventDefault();
+        showServerErrors('Payment Method is required. Please select a payment method.');
+    });
+    referenceInput.addEventListener('input', hideReferenceError);
+    referenceInput.addEventListener('invalid', e => { if (!referenceInput.value.trim()) { e.preventDefault(); showReferenceError('Reference No. is required.'); } });
     function showProofError(message) { fileErrorMessage.textContent = message; fileError.classList.remove('hidden'); }
     function hideProofError() { fileErrorMessage.textContent = ''; fileError.classList.add('hidden'); }
     const formSection = document.getElementById('customerPaymentFormSection');
@@ -408,12 +511,15 @@
         if (history) historyBody.appendChild(history.content.cloneNode(true));
         form.reset();
         clearFile();
+        hideReferenceError();
+        hideServerErrors();
         form.action = button.dataset.action;
         document.getElementById('customerPaymentPurchaseId').value = id;
         document.getElementById('customerPaymentModalSubtitle').textContent = button.dataset.customer + ' · ' + button.dataset.order;
         document.getElementById('customerPaymentPayables').textContent = '₱' + button.dataset.payables;
         document.getElementById('customerPaymentPaid').textContent = '₱' + button.dataset.paid;
         document.getElementById('customerPaymentBalance').textContent = '₱' + button.dataset.balance;
+        document.getElementById('customerMaxAdditional').value = button.dataset.balance.replace(/,/g,'');
         formSection.classList.toggle('hidden', readonly);
         lockedMessage.classList.toggle('hidden', !readonly);
         previousOverflow = document.body.style.overflow;
@@ -494,6 +600,18 @@
             showProofError('Receipt is required! Please attach a JPG, PNG, WEBP, or GIF image (maximum 5 MB) before saving.');
         }
     });
+    const addAmount = document.getElementById('customerAddAmount');
+    function checkAddBalance(show) {
+        const cents = Math.round(Number(addAmount.value) * 100);
+        const maxCents = Math.round(Number(document.getElementById('customerMaxAdditional').value) * 100);
+        if (!Number.isFinite(cents) || cents < 1) return true; // Native required/min validates.
+        if (cents > maxCents) {
+            if (show) showServerErrors('Payment exceeds the remaining balance. Maximum additional payment: ₱' + (maxCents/100).toLocaleString('en-PH',{minimumFractionDigits:2,maximumFractionDigits:2}) + '.');
+            return false;
+        }
+        return true;
+    }
+    addAmount.addEventListener('input', () => {hideServerErrors();checkAddBalance(true)});
     form.addEventListener('submit', e => {
         const id = document.getElementById('customerPaymentPurchaseId').value;
         const trigger = [...document.querySelectorAll('[data-payment-open]')].find(b => b.dataset.purchaseId === id);
@@ -501,6 +619,19 @@
             e.preventDefault();
             return;
         }
+        if (!referenceInput.value.trim()) {
+            e.preventDefault();
+            showReferenceError('Reference No. is required.');
+            referenceInput.focus();
+            return;
+        }
+        if (!form.elements['payment_method'].value) {
+            e.preventDefault();
+            showServerErrors('Payment Method is required. Please select a payment method.');
+            form.elements['payment_method'].focus();
+            return;
+        }
+        hideServerErrors();
         const receipt = fileInput.files?.[0];
         if (!receipt) {
             e.preventDefault();
@@ -522,12 +653,13 @@
             fileInput.value = '';
             return;
         }
+        if (!checkAddBalance(true)) { e.preventDefault(); addAmount.focus(); return; }
         hideProofError();
         document.getElementById('customerPaymentSubmit').disabled = true;
     });
 
-    // On validation errors, reopen the corresponding modal with prior non-file values.
-    @if($errors->any() && old('payment_purchase_id'))
+    // Named error bag prevents the shared layout from rendering payment errors at page top.
+    @if($errors->getBag('customerPayment')->any() && old('payment_purchase_id'))
         const failedTrigger = [...document.querySelectorAll('[data-payment-open]')].find(b => b.dataset.purchaseId === @js((string) old('payment_purchase_id')));
         if (failedTrigger) {
             openModal(failedTrigger);
@@ -535,8 +667,90 @@
             form.elements['amount'].value = @js(old('amount', ''));
             form.elements['payment_method'].value = @js(old('payment_method', ''));
             form.elements['reference_no'].value = @js(old('reference_no', ''));
+            @if($errors->getBag('customerPayment')->has('reference_no'))
+                showReferenceError(@js($errors->getBag('customerPayment')->first('reference_no')));
+            @endif
+            @if($errors->getBag('customerPayment')->has('proof_image'))
+                showProofError(@js($errors->getBag('customerPayment')->first('proof_image')));
+            @endif
+            @php
+                $otherPaymentErrors = collect($errors->getBag('customerPayment')->messages())
+                    ->except(['reference_no', 'proof_image'])
+                    ->flatten()
+                    ->implode(' ');
+            @endphp
+            @if($otherPaymentErrors)
+                showServerErrors(@js($otherPaymentErrors));
+            @endif
         }
     @endif
 })();
 </script>
+
+<script>
+(() => {
+ const editOverlay=document.getElementById('customerEditPaymentOverlay');
+ const auditOverlay=document.getElementById('customerAuditOverlay');
+ const editForm=document.getElementById('customerEditPaymentForm');
+ const editFile=document.getElementById('customerEditProofInput');
+ const editWarning=document.getElementById('customerEditReceiptWarning');
+ let editProofUrl='';
+ let maxEditCents=0;
+ const editAmountInput=document.getElementById('customerEditAmount');
+ const checkEditBalance=(show)=>{const cents=Math.round(Number(editAmountInput.value)*100);if(!Number.isFinite(cents)||cents<1)return true;if(cents>maxEditCents){if(show)showEditWarning('Corrected payment exceeds the allowed total. Maximum corrected amount: ₱'+(maxEditCents/100).toLocaleString('en-PH',{minimumFractionDigits:2,maximumFractionDigits:2})+'.');return false;}return true;};
+ const openOverlay=(el)=>{if(!el)return;document.body.appendChild(el);el.classList.add('is-open');el.setAttribute('aria-hidden','false')};
+ const closeOverlay=(el)=>{if(!el)return;el.classList.remove('is-open');el.setAttribute('aria-hidden','true')};
+ const showEditWarning=(text)=>{editWarning.textContent=text;editWarning.classList.remove('hidden')};
+ function openEdit(button){
+   if(!editOverlay)return;
+   editForm.reset();editWarning.classList.add('hidden');editWarning.textContent='';
+   editForm.action=button.dataset.url;
+   document.getElementById('customerEditTracking').textContent=button.dataset.tracking;
+   document.getElementById('customerEditDate').value=button.dataset.date || '';
+   document.getElementById('customerEditAmount').value=button.dataset.amount || '';
+   maxEditCents=Math.round(Number(button.dataset.editMax||0)*100);
+   document.getElementById('customerEditMaxHelp').textContent='Maximum allowed: ₱'+(maxEditCents/100).toLocaleString('en-PH',{minimumFractionDigits:2,maximumFractionDigits:2});
+   document.getElementById('customerEditMethod').value=button.dataset.method || '';
+   document.getElementById('customerEditReference').value=button.dataset.reference || '';
+   document.getElementById('customerEditRemarks').value=button.dataset.remarks || '';
+   document.getElementById('customerEditReason').value='';
+   editProofUrl=button.dataset.proof || '';
+   document.getElementById('customerEditOriginalProof').classList.toggle('hidden',!editProofUrl);
+   openOverlay(editOverlay);
+ }
+ async function openHistory(button){
+   document.getElementById('customerAuditTracking').textContent=button.dataset.tracking;
+   const container=document.getElementById('customerAuditContent');container.replaceChildren();container.textContent='Loading history…';openOverlay(auditOverlay);
+   try {
+     const response=await fetch(button.dataset.paymentAudit,{headers:{'Accept':'application/json','X-Requested-With':'XMLHttpRequest'},credentials:'same-origin'});
+     if(!response.ok)throw new Error('Unable to load edit history (HTTP '+response.status+').');
+     const records=await response.json();container.replaceChildren();
+     if(!records.length){container.textContent='No edits recorded for this payment.';return;}
+     for(const record of records){
+       const section=document.createElement('section');section.className='mb-3 rounded-lg border border-slate-700 p-3';
+       const head=document.createElement('div');head.className='mb-2 text-xs text-slate-300';head.textContent=`${record.date} · ${record.user} · ${record.action}`;section.append(head);
+       const reason=document.createElement('p');reason.className='mb-2 text-xs text-amber-300';reason.textContent=record.description;section.append(reason);
+       const table=document.createElement('table');table.className='customer-audit-table';
+       const trh=document.createElement('tr');for(const title of ['Field','Before','After']){const th=document.createElement('th');th.textContent=title;trh.append(th)}table.append(trh);
+       for(const c of record.changes){const tr=document.createElement('tr');for(const v of [c.field,c.old,c.new]){const td=document.createElement('td');td.textContent=v == null ? '—' : String(v);tr.append(td)}table.append(tr)}
+       section.append(table);container.append(section);
+     }
+   }catch(err){container.textContent=err.message||'Unable to load history.';}
+ }
+ document.addEventListener('click',e=>{
+   const edit=e.target.closest('[data-payment-edit]');if(edit){openEdit(edit);return;}
+   const audit=e.target.closest('[data-payment-audit]');if(audit){openHistory(audit);return;}
+ });
+ document.getElementById('customerEditClose')?.addEventListener('click',()=>closeOverlay(editOverlay));
+ document.getElementById('customerEditCancel')?.addEventListener('click',()=>closeOverlay(editOverlay));
+ document.getElementById('customerAuditClose').addEventListener('click',()=>closeOverlay(auditOverlay));
+ for(const el of [editOverlay,auditOverlay])el?.addEventListener('click',e=>{if(e.target===el)closeOverlay(el)});
+ document.addEventListener('keydown',e=>{if(e.key==='Escape'){if(auditOverlay.classList.contains('is-open'))closeOverlay(auditOverlay);else if(editOverlay?.classList.contains('is-open'))closeOverlay(editOverlay)}});
+ document.getElementById('customerEditOriginalButton')?.addEventListener('click',()=>{if(editProofUrl && typeof window.openPaymentProof==='function')window.openPaymentProof(editProofUrl)});
+ editFile?.addEventListener('change',()=>{editWarning.classList.add('hidden');const f=editFile.files?.[0];if(!f)return;const ext=f.name.split('.').pop()?.toLowerCase();if(!['image/jpeg','image/png','image/webp','image/gif'].includes(f.type)||!['jpg','jpeg','png','webp','gif'].includes(ext)){showEditWarning('Invalid file format! Only JPG, PNG, WEBP, and GIF are allowed.');editFile.value='';return;}if(f.size>5*1024*1024){showEditWarning('Receipt is too large. Maximum 5 MB.');editFile.value='';}});
+ editAmountInput?.addEventListener('input',()=>{editWarning.classList.add('hidden');checkEditBalance(true)});
+ editForm?.addEventListener('submit',e=>{if(!checkEditBalance(true)){e.preventDefault();editAmountInput.focus();return;}if(editWarning&&!editWarning.classList.contains('hidden')){e.preventDefault();return;}const f=editFile.files?.[0];if(f&&(!['image/jpeg','image/png','image/webp','image/gif'].includes(f.type)||f.size>5*1024*1024)){e.preventDefault();showEditWarning('Invalid receipt. JPG, PNG, WEBP, GIF only, maximum 5 MB.');return;}document.getElementById('customerEditSave').disabled=true;});
+})();
+</script>
+
 @endsection

@@ -82,6 +82,16 @@ Route::middleware(['auth', 'account.active', 'idle.timeout'])->group(function ()
     Route::get('/fuel-customer-payments', [FuelCustomerPaymentController::class, 'index'])
         ->name('fuel-customer-payments.index');
 
+    Route::patch('/fuel-customer-payments/{fuelCustomerPayment}', [FuelCustomerPaymentController::class, 'update'])
+    ->name('fuel-customer-payments.update');
+Route::get('/fuel-customer-payments/{fuelCustomerPayment}/history', [FuelCustomerPaymentController::class, 'history'])
+    ->name('fuel-customer-payments.history');
+
+Route::patch('/fuel-payments/{fuelPayment}', [FuelPaymentController::class, 'update'])
+    ->name('fuel-payments.update');
+Route::get('/fuel-payments/{fuelPayment}/history', [FuelPaymentController::class, 'history'])
+    ->name('fuel-payments.history');
+
         Route::post(
     '/fuel-customer-purchases/{fuelCustomerPurchase}/payments',
     [FuelCustomerPaymentController::class, 'store']

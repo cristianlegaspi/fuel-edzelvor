@@ -6,6 +6,7 @@
 
 @section('header-actions')
 <a href="{{ route('fuel-sales-orders.create') }}" class="rounded-lg bg-amber-500 px-4 py-2 text-sm font-semibold text-white hover:bg-amber-600">+ New Order</a>
+
 @endsection
 
 @section('content')
@@ -93,12 +94,22 @@
     border: 2px solid #ef4444 !important;
     outline: 1px solid rgba(239,68,68,.3);
 }
+
+.supplier-field-warning{display:none;margin-top:7px;padding:10px 12px;border:1px solid #ef4444;border-left:4px solid #dc2626;border-radius:8px;background:#450a0a;color:#fecaca;font-size:12px;font-weight:700;line-height:1.5}
+.supplier-field-warning:not([hidden]){display:block}
+.supplier-history-actions{display:flex;gap:5px;flex-wrap:wrap;align-items:center}
+.supplier-history-btn{padding:6px 9px;border:0;border-radius:7px;color:white!important;font-size:11px;font-weight:700;cursor:pointer}
+.supplier-history-btn.edit{background:#d97706}.supplier-history-btn.audit{background:#475569}.supplier-history-btn.proof{background:#2563eb}
+.supplier-correction-overlay{position:fixed;inset:0;z-index:9300;display:flex;align-items:center;justify-content:center;padding:12px;background:rgba(2,6,23,.82);visibility:hidden;opacity:0;pointer-events:none;transition:opacity .2s,visibility .2s}
+.supplier-correction-overlay.is-open{visibility:visible;opacity:1;pointer-events:auto}
+.supplier-correction-panel{display:flex;flex-direction:column;width:min(670px,100%);max-height:90dvh;overflow:hidden;border-radius:14px;border:1px solid #475569;background:#0f172a;color:#e2e8f0;box-shadow:0 20px 60px #0009}
+.supplier-correction-input{display:block;width:100%;box-sizing:border-box;margin-top:5px;border:1px solid #475569;border-radius:8px;background:#1e293b;color:#fff;padding:10px;font-size:13px}
+.supplier-audit-table{border-collapse:collapse;width:100%;font-size:12px}.supplier-audit-table th,.supplier-audit-table td{padding:9px;border-bottom:1px solid #334155;text-align:left;vertical-align:top;overflow-wrap:anywhere}
+#supplierCorrectionSave{background:#059669!important;color:#fff!important;padding:10px 18px;border-radius:8px;font-weight:700}
+#supplierCorrectionSave:hover{background:#047857!important}
 </style>
 
 @if(session('success'))<div class="mb-4 rounded-lg border border-emerald-400/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-600 dark:text-emerald-400" role="status">{{ session('success') }}</div>@endif
-@if($errors->any())
-<div class="mb-4 rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-600 dark:text-red-400" role="alert"><strong>Payment could not be saved:</strong><ul class="mt-1 list-disc pl-5">@foreach($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul></div>
-@endif
 
 <form method="GET" class="mb-4 flex flex-wrap gap-3">
 <input type="text" name="search" value="{{ request('search') }}" placeholder="Search order no. or supplier..." class="w-full sm:w-72 rounded-lg border-slate-300 dark:border-slate-600 text-sm">
@@ -139,8 +150,26 @@ $balance = max(0,(float)$order->net_amount - $totalPaid);
 @foreach($orders as $order)
 <template id="supplier-history-{{ $order->getKey() }}">
 @forelse($order->payments->sortByDesc('id') as $payment)
-<tr class="border-b border-slate-200 dark:border-slate-800"><td class="px-3 py-3 whitespace-nowrap">{{ optional($payment->payment_date)->format('M d, Y')??'—' }}</td><td class="px-3 py-3 whitespace-nowrap font-semibold">₱{{ number_format($payment->amount,2) }}</td><td class="px-3 py-3">{{ $payment->payment_method??'—' }}</td><td class="px-3 py-3">{{ $payment->reference_no??'—' }}</td><td class="px-3 py-3">@if($payment->proof_image)<button type="button" data-supplier-proof-url="{{ route('fuel-payments.proof',$payment) }}" class="text-amber-600 dark:text-amber-400 font-medium hover:underline">View Proof</button>@else<span class="text-slate-400">No image</span>@endif</td></tr>
-@empty<tr><td colspan="5" class="px-3 py-7 text-center text-slate-400">No payments recorded yet.</td></tr>@endforelse
+<tr class="border-b border-slate-200 dark:border-slate-800">
+<td class="px-3 py-3 whitespace-nowrap">{{ optional($payment->payment_date)->format('M d, Y') ?? '—' }}</td>
+<td class="px-3 py-3 font-semibold whitespace-nowrap">₱{{ number_format($payment->amount,2) }}</td>
+<td class="px-3 py-3">{{ $payment->payment_method ?: '—' }}</td>
+<td class="px-3 py-3">{{ $payment->reference_no ?: '—' }}</td>
+<td class="px-3 py-3">@if($payment->proof_image)<button type="button" data-supplier-proof-url="{{ route('fuel-payments.proof',$payment) }}" class="supplier-history-btn proof">View Proof</button>@else — @endif</td>
+<td class="px-3 py-3"><div class="supplier-history-actions">
+@if(auth()->user()?->isAdminOrAbove())
+<button type="button" class="supplier-history-btn edit" data-supplier-edit
+ data-url="{{ route('fuel-payments.update', $payment) }}"
+ data-date="{{ optional($payment->payment_date)->format('Y-m-d') }}"
+ data-amount="{{ $payment->amount }}" data-method="{{ $payment->payment_method }}"
+ data-reference="{{ $payment->reference_no }}" data-remarks="{{ $payment->remarks }}"
+ data-proof="{{ $payment->proof_image ? route('fuel-payments.proof', $payment) : '' }}"
+ data-order-id="{{ $order->getKey() }}" data-max-amount="{{ number_format(max(0,(float)$order->net_amount - ((float)$order->payments->sum('amount') - (float)$payment->amount)),2,'.','') }}">✎ Edit</button>
+<button type="button" class="supplier-history-btn audit" data-supplier-audit="{{ route('fuel-payments.history', $payment) }}">History</button>
+@endif
+</div></td>
+</tr>
+@empty<tr><td colspan="6" class="px-3 py-7 text-center text-slate-400">No payments recorded yet.</td></tr>@endforelse
 </template>
 @endforeach
 
@@ -154,7 +183,7 @@ $balance = max(0,(float)$order->net_amount - $totalPaid);
 <div class="supplier-summary-card supplier-summary-paid"><div class="supplier-summary-label">Total Paid</div><div id="supplierModalPaid" class="supplier-summary-value"></div></div>
 <div class="supplier-summary-card supplier-summary-balance"><div class="supplier-summary-label">Remaining Balance</div><div id="supplierModalBalance" class="supplier-summary-value"></div></div>
 </div>
-<section><h3 class="mb-3 text-sm font-semibold text-slate-900 dark:text-white">Payment History</h3><div class="overflow-x-auto rounded-lg border border-slate-200 dark:border-slate-700"><table class="min-w-[620px] w-full text-xs text-slate-700 dark:text-slate-300"><thead class="bg-slate-100 text-left text-slate-500 dark:bg-slate-800 dark:text-slate-400"><tr><th class="px-3 py-3">Date</th><th class="px-3 py-3">Amount</th><th class="px-3 py-3">Method</th><th class="px-3 py-3">Reference</th><th class="px-3 py-3">Proof</th></tr></thead><tbody id="supplierHistoryBody"></tbody></table></div></section>
+<section><h3 class="mb-3 text-sm font-semibold text-slate-900 dark:text-white">Payment History</h3><div class="overflow-x-auto rounded-lg border border-slate-200 dark:border-slate-700"><table class="min-w-[760px] w-full text-xs text-slate-700 dark:text-slate-300"><thead class="bg-slate-100 text-left text-slate-500 dark:bg-slate-800 dark:text-slate-400"><tr><th class="px-3 py-3">Date</th><th class="px-3 py-3">Amount</th><th class="px-3 py-3">Method</th><th class="px-3 py-3">Reference</th><th class="px-3 py-3">Proof</th><th class="px-3 py-3">Actions</th></tr></thead><tbody id="supplierHistoryBody"></tbody></table></div></section>
 <div id="supplierModalLocked" class="hidden rounded-lg border border-slate-600 bg-slate-100 px-4 py-3 text-sm text-slate-700 dark:bg-slate-800 dark:text-slate-300">This supplier order is paid or overpaid. Payment history is view-only and additional payments are disabled.</div>
 <section id="supplierPaymentFormSection"><h3 class="mb-3 text-sm font-semibold text-slate-900 dark:text-white">Add Supplier Payment</h3>
 <form id="supplierPaymentForm" method="POST" action="" enctype="multipart/form-data" class="space-y-4">@csrf
@@ -162,9 +191,12 @@ $balance = max(0,(float)$order->net_amount - $totalPaid);
 <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
 <label class="block text-xs text-slate-500 dark:text-slate-400">Payment Date<input name="payment_date" type="date" value="{{ old('payment_date',now()->toDateString()) }}" class="mt-1 w-full rounded-lg border-slate-300 text-sm dark:border-slate-600"></label>
 <label class="block text-xs text-slate-500 dark:text-slate-400">Amount<input name="amount" type="number" min="0.01" step="0.01" required value="{{ old('amount') }}" class="mt-1 w-full rounded-lg border-slate-300 text-sm dark:border-slate-600"></label>
-<label class="block text-xs text-slate-500 dark:text-slate-400">Payment Method<select name="payment_method" class="mt-1 w-full rounded-lg border-slate-300 text-sm dark:border-slate-600"><option value="">Select Method</option>@foreach(['Cash','Check','Bank Transfer','Online Transfer','GCash','Others'] as $method)<option value="{{ $method }}" @selected(old('payment_method')===$method)>{{ $method }}</option>@endforeach</select></label>
-<label class="block text-xs text-slate-500 dark:text-slate-400">Reference No.<input name="reference_no" type="text" value="{{ old('reference_no') }}" class="mt-1 w-full rounded-lg border-slate-300 text-sm dark:border-slate-600"></label>
+<label class="block text-xs text-slate-500 dark:text-slate-400">Payment Method<select name="payment_method" required class="mt-1 w-full rounded-lg border-slate-300 text-sm dark:border-slate-600"><option value="">Select Method</option>@foreach(['Cash','Check','Bank Transfer','Online Transfer','GCash','Others'] as $method)<option value="{{ $method }}" @selected(old('payment_method')===$method)>{{ $method }}</option>@endforeach</select></label>
+<label class="block text-xs text-slate-500 dark:text-slate-400">Reference No.<input name="reference_no" id="supplierReferenceInput" required maxlength="255" type="text" value="{{ old('reference_no') }}" class="mt-1 w-full rounded-lg border-slate-300 text-sm dark:border-slate-600"></label>
 </div>
+<div id="supplierReferenceWarning" class="supplier-field-warning" role="alert" hidden></div>
+<div id="supplierMethodWarning" class="supplier-field-warning" role="alert" hidden></div>
+<div id="supplierModalOtherErrors" class="supplier-field-warning" role="alert" hidden></div>
 <div><label for="supplierProofInput" class="mb-1 block text-xs text-slate-500 dark:text-slate-400">Proof of Payment (image only)</label><input id="supplierProofInput" name="proof_image" type="file" required aria-required="true" accept=".jpg,.jpeg,.png,.webp,.gif,image/jpeg,image/png,image/webp,image/gif" class="w-full rounded-lg border border-slate-300 p-2 text-sm dark:border-slate-600"><p class="mt-1 text-xs text-slate-400">JPG, PNG, WEBP, GIF · Maximum 5 MB</p><div id="supplierProofSelected" class="mt-3 hidden items-center gap-3"><img id="supplierProofThumb" alt="Selected proof" class="h-14 w-14 rounded border object-cover"><button id="supplierProofPreview" type="button" class="text-sm font-semibold text-amber-500 hover:underline">Preview Image</button><button id="supplierProofRemove" type="button" class="text-sm font-semibold text-red-500 hover:underline">Remove</button></div><div id="supplierProofError" class="mt-3" role="alert" aria-live="assertive" hidden>
   <span aria-hidden="true" style="font-size:19px;line-height:1.2">⚠</span>
   <span id="supplierProofErrorText"></span>
@@ -172,6 +204,37 @@ $balance = max(0,(float)$order->net_amount - $totalPaid);
 <div class="flex justify-end gap-2 border-t border-slate-200 pt-4 dark:border-slate-700"><button type="button" id="supplierModalCancel" class="rounded-lg border border-slate-300 px-4 py-2 text-sm text-slate-700 hover:bg-slate-100 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-800">Cancel</button><button id="supplierModalSubmit" type="submit" style="background:#059669;color:#fff" class="rounded-lg px-5 py-2 text-sm font-bold shadow-sm transition hover:brightness-110 disabled:opacity-60">Save Payment</button></div>
 </form></section>
 </div></div></div>
+
+
+{{-- Authorized corrections and audit trail --}}
+@if(auth()->user()?->isAdminOrAbove())
+<div id="supplierCorrectionOverlay" class="supplier-correction-overlay" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="supplierCorrectionTitle">
+ <div class="supplier-correction-panel">
+  <header class="flex items-center justify-between border-b border-slate-700 p-4"><h3 id="supplierCorrectionTitle" class="font-bold">Edit Supplier Payment</h3><button type="button" id="supplierCorrectionClose" aria-label="Close" class="text-xl">&times;</button></header>
+  <div class="overflow-y-auto p-4"><p class="mb-3 rounded-lg border border-amber-700 bg-amber-950/40 p-3 text-xs text-amber-200">Financial correction requires a reason. Previous values are retained in Audit Logs.</p>
+  <form id="supplierCorrectionForm" method="POST" enctype="multipart/form-data" class="space-y-3">@csrf @method('PATCH')
+  <input type="hidden" name="payment_order_id" id="supplierCorrectionOrderId">
+  <input type="hidden" name="payment_edit_url" id="supplierCorrectionEditUrl">
+  <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+   <label class="text-xs">Payment Date<input id="supplierCorrectionDate" type="date" name="payment_date" class="supplier-correction-input"></label>
+   <label class="text-xs">Amount<input id="supplierCorrectionAmount" type="number" name="amount" min="0.01" step="0.01" required class="supplier-correction-input"></label>
+   <label class="text-xs">Payment Method<select id="supplierCorrectionMethod" name="payment_method" required class="supplier-correction-input"><option value="">Select Method</option>@foreach(['Cash','Check','Bank Transfer','Online Transfer','GCash','Others'] as $m)<option value="{{ $m }}">{{ $m }}</option>@endforeach</select></label>
+   <label class="text-xs">Reference No.<input id="supplierCorrectionReference" name="reference_no" required maxlength="255" class="supplier-correction-input"></label>
+  </div>
+  <label class="block text-xs">Remarks<textarea id="supplierCorrectionRemarks" name="remarks" rows="2" class="supplier-correction-input"></textarea></label>
+  <label class="block text-xs">Reason for Correction <span class="text-red-400">*</span><textarea id="supplierCorrectionReason" name="edit_reason" required minlength="10" maxlength="1000" rows="2" class="supplier-correction-input" placeholder="Explain why this payment must be corrected"></textarea></label>
+  <label class="block text-xs">Replace Receipt (optional)<input id="supplierCorrectionReceipt" name="proof_image" type="file" accept=".jpg,.jpeg,.png,.webp,.gif,image/jpeg,image/png,image/webp,image/gif" class="supplier-correction-input"><span class="text-slate-400">JPG, PNG, WEBP, GIF · Maximum 5 MB</span></label>
+  <button id="supplierCorrectionExistingProof" type="button" class="hidden text-xs font-semibold text-blue-400 hover:underline">View existing receipt</button>
+  <p id="supplierCorrectionMaximum" class="text-xs text-amber-300"></p>
+  <div id="supplierCorrectionWarning" class="supplier-field-warning" role="alert" hidden></div>
+  <footer class="flex justify-end gap-2 border-t border-slate-700 pt-3"><button id="supplierCorrectionCancel" type="button" class="rounded-lg border border-slate-500 px-4 py-2 text-sm">Cancel</button><button id="supplierCorrectionSave" type="submit">Save Correction</button></footer>
+  </form></div>
+ </div>
+</div>
+<div id="supplierAuditOverlay" class="supplier-correction-overlay" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="supplierAuditTitle">
+ <div class="supplier-correction-panel"><header class="flex items-center justify-between border-b border-slate-700 p-4"><h3 id="supplierAuditTitle" class="font-bold">Supplier Payment Edit History</h3><button type="button" id="supplierAuditClose" class="text-xl" aria-label="Close">&times;</button></header><div id="supplierAuditContent" class="overflow-y-auto p-4 text-sm">Loading…</div></div>
+</div>
+@endif
 
 {{-- Keep one reusable image proof modal only. --}}
 @include('fuel.partials.payment-proof-modal')
@@ -183,7 +246,7 @@ $balance = max(0,(float)$order->net_amount - $totalPaid);
  document.body.appendChild(modal);const proofOverlay=document.getElementById('paymentProofModal');if(proofOverlay&&proofOverlay.parentElement!==document.body)document.body.appendChild(proofOverlay);
  function clearFile(){fileReadToken++;file.value='';previewUrl=null;thumb.removeAttribute('src');selected.classList.add('hidden');selected.classList.remove('flex');err.hidden=true;err.classList.remove('supplier-proof-alert');file.classList.remove('supplier-file-invalid');document.getElementById('supplierProofErrorText').textContent=''}
  function close(){if(!modal.classList.contains('supplier-open'))return;modal.classList.remove('supplier-open');modal.setAttribute('aria-hidden','true');document.body.style.overflow=oldOverflow;if(closeTimer)clearTimeout(closeTimer);closeTimer=setTimeout(()=>{clearFile();lastTrigger?.focus()},230)}
- function open(btn){if(closeTimer)clearTimeout(closeTimer);lastTrigger=btn;const id=btn.dataset.id,locked=['paid','overpaid'].includes(btn.dataset.status);const tpl=document.getElementById('supplier-history-'+id);body.replaceChildren();if(tpl)body.appendChild(tpl.content.cloneNode(true));form.reset();clearFile();form.action=btn.dataset.action;document.getElementById('supplierOrderId').value=id;document.getElementById('supplierModalSubtitle').textContent=btn.dataset.supplier+' · '+btn.dataset.order;document.getElementById('supplierModalNet').textContent='₱'+btn.dataset.net;document.getElementById('supplierModalPaid').textContent='₱'+btn.dataset.paid;document.getElementById('supplierModalBalance').textContent='₱'+btn.dataset.balance;document.getElementById('supplierModalLocked').classList.toggle('hidden',!locked);document.getElementById('supplierPaymentFormSection').classList.toggle('hidden',locked);oldOverflow=document.body.style.overflow;document.body.style.overflow='hidden';modal.classList.add('supplier-open');modal.setAttribute('aria-hidden','false');document.getElementById('supplierModalClose').focus()}
+ function open(btn){if(closeTimer)clearTimeout(closeTimer);lastTrigger=btn;const id=btn.dataset.id,locked=['paid','overpaid'].includes(btn.dataset.status);const tpl=document.getElementById('supplier-history-'+id);body.replaceChildren();if(tpl)body.appendChild(tpl.content.cloneNode(true));form.reset();clearFile();['supplierReferenceWarning','supplierMethodWarning','supplierModalOtherErrors'].forEach(id=>{const e=document.getElementById(id);e.textContent='';e.hidden=true});form.action=btn.dataset.action;document.getElementById('supplierOrderId').value=id;document.getElementById('supplierModalSubtitle').textContent=btn.dataset.supplier+' · '+btn.dataset.order;document.getElementById('supplierModalNet').textContent='₱'+btn.dataset.net;document.getElementById('supplierModalPaid').textContent='₱'+btn.dataset.paid;document.getElementById('supplierModalBalance').textContent='₱'+btn.dataset.balance;document.getElementById('supplierModalLocked').classList.toggle('hidden',!locked);document.getElementById('supplierPaymentFormSection').classList.toggle('hidden',locked);oldOverflow=document.body.style.overflow;document.body.style.overflow='hidden';modal.classList.add('supplier-open');modal.setAttribute('aria-hidden','false');document.getElementById('supplierModalClose').focus()}
  document.querySelectorAll('[data-supplier-open]').forEach(btn=>btn.addEventListener('click',()=>open(btn)));
  document.getElementById('supplierModalClose').addEventListener('click',close);document.getElementById('supplierModalCancel').addEventListener('click',close);modal.addEventListener('click',e=>{if(e.target===modal)close()});document.addEventListener('keydown',e=>{if(e.key==='Escape' && modal.classList.contains('supplier-open') && document.getElementById('paymentProofModal')?.classList.contains('hidden'))close()});
  body.addEventListener('click',e=>{const b=e.target.closest('[data-supplier-proof-url]');if(b && typeof window.openPaymentProof==='function')window.openPaymentProof(b.dataset.supplierProofUrl)});
@@ -261,6 +324,8 @@ document.getElementById('supplierProofRemove').addEventListener('click',clearFil
      event.preventDefault();
      return;
    }
+   if (!form.elements['payment_method'].value) { event.preventDefault();const e=document.getElementById('supplierMethodWarning');e.textContent='Please select a payment method.';e.hidden=false;return; }
+   if (!form.elements['reference_no'].value.trim()) { event.preventDefault();const e=document.getElementById('supplierReferenceWarning');e.textContent='Reference No. is required.';e.hidden=false;return; }
    const receipt = file.files?.[0];
    if (!receipt) {
      event.preventDefault();
@@ -284,10 +349,101 @@ document.getElementById('supplierProofRemove').addEventListener('click',clearFil
    hideFileError();
    document.getElementById('supplierModalSubmit').disabled = true;
  });
- @if($errors->any() && old('payment_order_id'))
+ @if($errors->supplierPayment->any() && old('payment_order_id'))
  const failed=[...document.querySelectorAll('[data-supplier-open]')].find(b=>b.dataset.id===@js((string)old('payment_order_id')));
- if(failed){open(failed);form.elements['payment_date'].value=@js(old('payment_date',''));form.elements['amount'].value=@js(old('amount',''));form.elements['payment_method'].value=@js(old('payment_method',''));form.elements['reference_no'].value=@js(old('reference_no',''))}
+ if(failed){open(failed);form.elements['payment_date'].value=@js(old('payment_date',''));form.elements['amount'].value=@js(old('amount',''));form.elements['payment_method'].value=@js(old('payment_method',''));form.elements['reference_no'].value=@js(old('reference_no',''));
+  const show=(id,message)=>{const el=document.getElementById(id);el.textContent=message;el.hidden=false};
+  @if($errors->supplierPayment->has('reference_no')) show('supplierReferenceWarning',@js($errors->supplierPayment->first('reference_no'))); @endif
+  @if($errors->supplierPayment->has('payment_method')) show('supplierMethodWarning',@js($errors->supplierPayment->first('payment_method'))); @endif
+  @if($errors->supplierPayment->has('proof_image')) showFileError(@js($errors->supplierPayment->first('proof_image'))); @endif
+  @if($errors->supplierPayment->has('amount')) show('supplierModalOtherErrors',@js($errors->supplierPayment->first('amount'))); @endif
+  }
  @endif
 })();
 </script>
+
+<script>
+(() => {
+ const edit = document.getElementById('supplierCorrectionOverlay');
+ const audit = document.getElementById('supplierAuditOverlay');
+ if (!edit || !audit) return;
+ const form = document.getElementById('supplierCorrectionForm');
+ const receipt = document.getElementById('supplierCorrectionReceipt');
+ const warning = document.getElementById('supplierCorrectionWarning');
+ const current = document.getElementById('supplierCorrectionExistingProof');
+ let existingUrl = '';
+ [edit,audit].forEach(el => document.body.appendChild(el));
+ function open(el){el.classList.add('is-open');el.setAttribute('aria-hidden','false')}
+ function close(el){el.classList.remove('is-open');el.setAttribute('aria-hidden','true')}
+ function warn(s){warning.textContent=s;warning.hidden=false}
+ document.addEventListener('click', event => {
+  const button=event.target.closest('[data-supplier-edit]');
+  if(button){
+   form.reset();warning.hidden=true;warning.textContent='';
+   form.action=button.dataset.url;
+   document.getElementById('supplierCorrectionEditUrl').value=button.dataset.url;
+   document.getElementById('supplierCorrectionOrderId').value=button.dataset.orderId;
+   document.getElementById('supplierCorrectionDate').value=button.dataset.date || '';
+   document.getElementById('supplierCorrectionAmount').value=button.dataset.amount || '';
+   const maxAmount=Number(button.dataset.maxAmount || 0);
+   document.getElementById('supplierCorrectionAmount').dataset.maximum=maxAmount.toFixed(2);
+   document.getElementById('supplierCorrectionMaximum').textContent='Maximum allowable corrected payment: ₱'+maxAmount.toLocaleString('en-PH',{minimumFractionDigits:2,maximumFractionDigits:2});
+   document.getElementById('supplierCorrectionMethod').value=button.dataset.method || '';
+   document.getElementById('supplierCorrectionReference').value=button.dataset.reference || '';
+   document.getElementById('supplierCorrectionRemarks').value=button.dataset.remarks || '';
+   document.getElementById('supplierCorrectionReason').value='';
+   existingUrl=button.dataset.proof || '';current.classList.toggle('hidden',!existingUrl);
+   open(edit);return;
+  }
+  const history=event.target.closest('[data-supplier-audit]');
+  if(history){
+   const area=document.getElementById('supplierAuditContent');area.textContent='Loading edit history…';open(audit);
+   fetch(history.dataset.supplierAudit,{credentials:'same-origin',headers:{Accept:'application/json'}})
+    .then(r=>{if(!r.ok)throw new Error('Unable to load history (HTTP '+r.status+').');return r.json()})
+    .then(records=>{area.replaceChildren();if(!records.length){area.textContent='No edits recorded.';return}
+      records.forEach(record=>{const section=document.createElement('section');section.className='mb-4 rounded-lg border border-slate-700 p-3';
+      const h=document.createElement('p');h.className='mb-2 text-xs font-semibold';h.textContent=[record.date,record.user,record.description].join(' · ');section.append(h);
+      const table=document.createElement('table');table.className='supplier-audit-table';const heading=document.createElement('tr');
+      ['Field','Before','After'].forEach(label=>{const th=document.createElement('th');th.textContent=label;heading.append(th)});table.append(heading);
+      (record.changes||[]).forEach(c=>{const tr=document.createElement('tr');[c.field,c.old,c.new].forEach(v=>{const td=document.createElement('td');td.textContent=v==null?'—':String(v);tr.append(td)});table.append(tr)});
+      section.append(table);area.append(section)});
+    }).catch(error=>{area.textContent=error.message});
+  }
+ });
+ document.getElementById('supplierCorrectionClose').onclick=()=>close(edit);
+ document.getElementById('supplierCorrectionCancel').onclick=()=>close(edit);
+ document.getElementById('supplierAuditClose').onclick=()=>close(audit);
+ [edit,audit].forEach(el=>el.addEventListener('click',e=>{if(e.target===el)close(el)}));
+ document.addEventListener('keydown',e=>{if(e.key==='Escape'){if(audit.classList.contains('is-open'))close(audit);else if(edit.classList.contains('is-open'))close(edit)}});
+ current.onclick=()=>{if(existingUrl&&typeof window.openPaymentProof==='function')window.openPaymentProof(existingUrl)};
+ receipt.addEventListener('change',()=>{warning.hidden=true;const f=receipt.files?.[0];if(!f)return;
+   if(!['image/jpeg','image/png','image/webp','image/gif'].includes(f.type)||! /\.(jpe?g|png|webp|gif)$/i.test(f.name)){warn('Only JPG, PNG, WEBP, GIF images are allowed.');receipt.value=''}
+   else if(f.size>5*1024*1024){warn('Maximum receipt size is 5 MB.');receipt.value=''}
+ });
+ form.addEventListener('submit',e=>{
+   const amount=Number(document.getElementById('supplierCorrectionAmount').value);
+   const max=Number(document.getElementById('supplierCorrectionAmount').dataset.maximum);
+   if(!Number.isFinite(amount)||amount<=0||amount>max+0.00001){e.preventDefault();warn('Payment correction exceeds the allowable balance. Maximum amount is ₱'+max.toFixed(2)+'.');return;}
+   const f=receipt.files?.[0];if(f&&(f.size>5*1024*1024||!['image/jpeg','image/png','image/webp','image/gif'].includes(f.type))){e.preventDefault();warn('Invalid receipt; JPG, PNG, WEBP, GIF, max 5 MB.');return}
+   document.getElementById('supplierCorrectionSave').disabled=true;
+ });
+ @if($errors->supplierCorrection->any() && old('payment_order_id'))
+   const priorOrder = @js((string) old('payment_order_id'));
+   // A single purchase may have multiple payments; use a dedicated payment URL in the form when available.
+   const selectedButton = [...document.querySelectorAll('[data-supplier-edit]')]
+     .find(b => b.dataset.url === @js(old('payment_edit_url', '')));
+   if(selectedButton) {
+     selectedButton.click();
+     document.getElementById('supplierCorrectionDate').value = @js(old('payment_date', ''));
+     document.getElementById('supplierCorrectionAmount').value = @js(old('amount', ''));
+     document.getElementById('supplierCorrectionMethod').value = @js(old('payment_method', ''));
+     document.getElementById('supplierCorrectionReference').value = @js(old('reference_no', ''));
+     document.getElementById('supplierCorrectionRemarks').value = @js(old('remarks', ''));
+     document.getElementById('supplierCorrectionReason').value = @js(old('edit_reason', ''));
+     warn(@js(implode(' ', $errors->supplierCorrection->all())));
+   }
+ @endif
+})();
+</script>
+
 @endsection

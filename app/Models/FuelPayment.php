@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 class FuelPayment extends Model
 {
     use Auditable, SoftDeletes;
+    public ?string $auditEditReason = null;
 
     protected $fillable = [
         'fuel_sales_order_id',
