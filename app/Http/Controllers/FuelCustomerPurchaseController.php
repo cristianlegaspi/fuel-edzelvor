@@ -256,4 +256,20 @@ class FuelCustomerPurchaseController extends Controller
                 'purchase' => $fuelCustomerPurchase,
             ]);
         }
+    /**
+ * Display a separate Customer Payment page.
+ */
+public function payments(FuelCustomerPurchase $fuelCustomerPurchase)
+{
+    $fuelCustomerPurchase->load([
+        'payments' => function ($query) {
+            $query->latest('payment_date')
+                  ->latest('id');
+        },
+    ]);
+
+    return view('fuel.customer-purchases.payments', [
+        'purchase' => $fuelCustomerPurchase,
+    ]);
+}
 }

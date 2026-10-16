@@ -287,7 +287,7 @@ function previewSelectedCustomerProof() {
     @include('fuel.customer-purchases._form')
 </form>
 
-{{-- Customer payments: image-only receipt attachment and preview --}}
+{{-- Customer payments: image-only receipt attachment and preview
 <div class="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 mt-6">
     <h2 class="font-semibold text-slate-900 dark:text-white mb-4">Customer Payments</h2>
     <div class="overflow-x-auto">
@@ -351,7 +351,7 @@ function previewSelectedCustomerProof() {
         </div>
         <div class="mt-4 flex justify-end"><button type="submit" data-loading-text="Adding…" class="rounded-lg bg-amber-500 px-5 py-2 text-sm font-medium text-white hover:bg-amber-600">Add Payment</button></div>
     </form>
-</div>
+</div> --}}
 
 {{-- Tanker delivery record — only exists once tanker_details is filled in --}}
 @if($purchase->tankerRecord)

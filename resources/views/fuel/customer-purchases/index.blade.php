@@ -124,66 +124,156 @@
 
                         </td>
 
-                        
-            {{-- Actions --}}
-            <td class="px-6 py-3 whitespace-nowrap text-right">
+           
+{{-- Actions --}}
+<td class="px-4 py-3 whitespace-nowrap text-right">
 
-                @php
-                    $isPaid = strtolower(trim((string) $purchase->status)) === 'paid';
-                @endphp
+    @php
+        $status = strtolower(trim((string) $purchase->status));
+        $isPaid = $status === 'paid';
+        $isOverpaid = $status === 'overpaid';
+    @endphp
 
-                <div class="inline-flex items-center gap-3">
+    <div class="inline-flex items-center justify-end gap-2">
 
-                    @if($isPaid)
+        @if($isPaid)
 
-                        {{-- Paid: View Details Only --}}
-                        <a
-                            href="{{ route('fuel-customer-purchases.details', $purchase) }}"
-                            class="text-blue-600 dark:text-blue-400 text-sm font-medium hover:underline"
-                        >
-                            View Details
-                        </a>
+            {{-- VIEW DETAILS - BLUE --}}
+            <a
+                href="{{ route('fuel-customer-purchases.details', $purchase) }}"
+                title="View Customer Purchase Details"
+                style="background-color:#2563eb;color:#ffffff;"
+                class="inline-flex items-center gap-2 rounded-lg
+                       px-3 py-2 text-xs font-semibold
+                       shadow-sm transition-all duration-200
+                       hover:!bg-blue-500 hover:shadow-lg
+                       hover:-translate-y-0.5"
+            >
+                <svg xmlns="http://www.w3.org/2000/svg"
+                     width="15" height="15" viewBox="0 0 24 24"
+                     fill="none" stroke="currentColor"
+                     stroke-width="2" stroke-linecap="round"
+                     stroke-linejoin="round">
+                    <path d="M2.062 12.348a1 1 0 0 1 0-.696
+                             10.75 10.75 0 0 1 19.876 0
+                             1 1 0 0 1 0 .696
+                             10.75 10.75 0 0 1-19.876 0"/>
+                    <circle cx="12" cy="12" r="3"/>
+                </svg>
+                View Details
+            </a>
 
-                        <span
-                            class="inline-flex items-center gap-1 text-xs font-medium text-slate-400"
-                            title="This purchase is fully paid and locked."
-                        >
-                            🔒 Locked
-                        </span>
+            {{-- LOCKED - SLATE --}}
+            <span
+                title="Fully paid purchase - Editing disabled"
+                style="background-color:#334155;color:#cbd5e1;"
+                class="inline-flex items-center gap-2 rounded-lg
+                       px-3 py-2 text-xs font-semibold
+                       cursor-not-allowed select-none"
+            >
+                <svg xmlns="http://www.w3.org/2000/svg"
+                     width="14" height="14" viewBox="0 0 24 24"
+                     fill="none" stroke="currentColor"
+                     stroke-width="2" stroke-linecap="round"
+                     stroke-linejoin="round">
+                    <rect x="5" y="11" width="14" height="10" rx="2"/>
+                    <path d="M8 11V7a4 4 0 0 1 8 0v4"/>
+                </svg>
+                Locked
+            </span>
 
-                    @else
+        @else
 
-                        {{-- Unpaid / Partial / Overpaid --}}
-                        <a
-                            href="{{ route('fuel-customer-purchases.edit', $purchase) }}"
-                            class="text-amber-600 dark:text-amber-400 text-sm font-medium hover:underline"
-                        >
-                            Edit
-                        </a>
+            {{-- EDIT - AMBER --}}
+            <a
+                href="{{ route('fuel-customer-purchases.edit', $purchase) }}"
+                title="Edit Customer Purchase"
+                style="background-color:#d97706;color:#ffffff;"
+                class="inline-flex items-center gap-2 rounded-lg
+                       px-3 py-2 text-xs font-semibold
+                       shadow-sm transition-all duration-200
+                       hover:!bg-amber-500 hover:shadow-lg
+                       hover:-translate-y-0.5"
+            >
+                <svg xmlns="http://www.w3.org/2000/svg"
+                     width="14" height="14" viewBox="0 0 24 24"
+                     fill="none" stroke="currentColor"
+                     stroke-width="2" stroke-linecap="round"
+                     stroke-linejoin="round">
+                    <path d="M12 20h9"/>
+                    <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z"/>
+                </svg>
+                Edit
+            </a>
 
-                        <form
-                            action="{{ route('fuel-customer-purchases.destroy', $purchase) }}"
-                            method="POST"
-                            class="inline"
-                            data-confirm="This will permanently delete the customer purchase and its items."
-                            data-confirm-type="danger"
-                            data-confirm-title="Delete this purchase?"
-                        >
-                            @csrf
-                            @method('DELETE')
+            {{-- ADD PAYMENT - GREEN --}}
+            <a
+                href="{{ route('fuel-customer-purchases.payments', $purchase) }}"
+                title="{{ $isOverpaid ? 'View Customer Payments' : 'Add Customer Payment' }}"
+                style="background-color:#059669;color:#ffffff;"
+                class="inline-flex items-center gap-2 rounded-lg
+                       px-3 py-2 text-xs font-semibold
+                       shadow-sm transition-all duration-200
+                       hover:!bg-emerald-500 hover:shadow-lg
+                       hover:-translate-y-0.5"
+            >
+                <svg xmlns="http://www.w3.org/2000/svg"
+                     width="15" height="15" viewBox="0 0 24 24"
+                     fill="none" stroke="currentColor"
+                     stroke-width="2" stroke-linecap="round"
+                     stroke-linejoin="round">
+                    <rect x="2" y="5" width="20" height="14" rx="2"/>
+                    <path d="M2 10h20"/>
+                    <path d="M16 14h2"/>
+                </svg>
 
-                            <button
-                                type="submit"
-                                class="text-red-600 dark:text-red-400 text-sm font-medium hover:underline"
-                            >
-                                Delete
-                            </button>
-                        </form>
+                {{ $isOverpaid ? 'View Payments' : 'Add Payment' }}
+            </a>
 
-                    @endif
+            {{-- DELETE - RED --}}
+            <form
+                action="{{ route('fuel-customer-purchases.destroy', $purchase) }}"
+                method="POST"
+                class="inline-flex"
+                data-confirm="This will permanently delete the customer purchase and its items."
+                data-confirm-type="danger"
+                data-confirm-title="Delete this purchase?"
+            >
+                @csrf
+                @method('DELETE')
 
-                </div>
-            </td>
+                <button
+                    type="submit"
+                    title="Delete Customer Purchase"
+                    style="background-color:#dc2626;color:#ffffff;"
+                    class="inline-flex items-center gap-2 rounded-lg
+                           px-3 py-2 text-xs font-semibold
+                           shadow-sm transition-all duration-200
+                           hover:!bg-red-500 hover:shadow-lg
+                           hover:-translate-y-0.5"
+                >
+                    <svg xmlns="http://www.w3.org/2000/svg"
+                         width="14" height="14" viewBox="0 0 24 24"
+                         fill="none" stroke="currentColor"
+                         stroke-width="2" stroke-linecap="round"
+                         stroke-linejoin="round">
+                        <path d="M3 6h18"/>
+                        <path d="M8 6V4h8v2"/>
+                        <path d="M19 6l-1 14H6L5 6"/>
+                        <path d="M10 11v5M14 11v5"/>
+                    </svg>
+                    Delete
+                </button>
+            </form>
+
+        @endif
+
+    </div>
+</td>
+
+
+
+
 
 
                     </tr>
@@ -207,5 +297,37 @@
 <div class="mt-6">
     <x-pagination :paginator="$purchases" />
 </div>
+
+
+<style>
+    .purchase-action-btn {
+        transition:
+            background-color 0.2s ease,
+            transform 0.2s ease,
+            box-shadow 0.2s ease;
+    }
+
+    .purchase-action-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+    }
+
+    .purchase-action-edit:hover {
+        background-color: #f59e0b !important;
+    }
+
+    .purchase-action-payment:hover {
+        background-color: #10b981 !important;
+    }
+
+    .purchase-action-delete:hover {
+        background-color: #ef4444 !important;
+    }
+
+    .purchase-action-view:hover {
+        background-color: #3b82f6 !important;
+    }
+</style>
+
 
 @endsection

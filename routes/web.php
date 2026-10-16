@@ -62,6 +62,11 @@ Route::middleware(['auth', 'account.active', 'idle.timeout'])->group(function ()
 
     // Customer purchases + their payments + their tanker record
     
+
+    Route::get(
+    '/fuel-customer-purchases/{fuelCustomerPurchase}/payments',
+    [FuelCustomerPurchaseController::class, 'payments']
+)->name('fuel-customer-purchases.payments');
     
     Route::get(
     '/fuel-customer-purchases/{fuelCustomerPurchase}/details',
@@ -77,6 +82,10 @@ Route::middleware(['auth', 'account.active', 'idle.timeout'])->group(function ()
     Route::get('/fuel-customer-payments', [FuelCustomerPaymentController::class, 'index'])
         ->name('fuel-customer-payments.index');
 
+        Route::post(
+    '/fuel-customer-purchases/{fuelCustomerPurchase}/payments',
+    [FuelCustomerPaymentController::class, 'store']
+)->name('fuel-customer-purchases.payments.store');
 // Protected customer payment proof image preview
     Route::get('/fuel-customer-payments/{fuelCustomerPayment}/proof', [
         FuelCustomerPaymentController::class,
