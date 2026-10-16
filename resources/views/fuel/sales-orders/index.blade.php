@@ -165,7 +165,7 @@ $balance = max(0,(float)$order->net_amount - $totalPaid);
 <label class="block text-xs text-slate-500 dark:text-slate-400">Payment Method<select name="payment_method" class="mt-1 w-full rounded-lg border-slate-300 text-sm dark:border-slate-600"><option value="">Select Method</option>@foreach(['Cash','Check','Bank Transfer','Online Transfer','GCash','Others'] as $method)<option value="{{ $method }}" @selected(old('payment_method')===$method)>{{ $method }}</option>@endforeach</select></label>
 <label class="block text-xs text-slate-500 dark:text-slate-400">Reference No.<input name="reference_no" type="text" value="{{ old('reference_no') }}" class="mt-1 w-full rounded-lg border-slate-300 text-sm dark:border-slate-600"></label>
 </div>
-<div><label for="supplierProofInput" class="mb-1 block text-xs text-slate-500 dark:text-slate-400">Proof of Payment (image only)</label><input id="supplierProofInput" name="proof_image" type="file" accept=".jpg,.jpeg,.png,.webp,.gif,image/jpeg,image/png,image/webp,image/gif" class="w-full rounded-lg border border-slate-300 p-2 text-sm dark:border-slate-600"><p class="mt-1 text-xs text-slate-400">JPG, PNG, WEBP, GIF · Maximum 5 MB</p><div id="supplierProofSelected" class="mt-3 hidden items-center gap-3"><img id="supplierProofThumb" alt="Selected proof" class="h-14 w-14 rounded border object-cover"><button id="supplierProofPreview" type="button" class="text-sm font-semibold text-amber-500 hover:underline">Preview Image</button><button id="supplierProofRemove" type="button" class="text-sm font-semibold text-red-500 hover:underline">Remove</button></div><div id="supplierProofError" class="mt-3" role="alert" aria-live="assertive" hidden>
+<div><label for="supplierProofInput" class="mb-1 block text-xs text-slate-500 dark:text-slate-400">Proof of Payment (image only)</label><input id="supplierProofInput" name="proof_image" type="file" required aria-required="true" accept=".jpg,.jpeg,.png,.webp,.gif,image/jpeg,image/png,image/webp,image/gif" class="w-full rounded-lg border border-slate-300 p-2 text-sm dark:border-slate-600"><p class="mt-1 text-xs text-slate-400">JPG, PNG, WEBP, GIF · Maximum 5 MB</p><div id="supplierProofSelected" class="mt-3 hidden items-center gap-3"><img id="supplierProofThumb" alt="Selected proof" class="h-14 w-14 rounded border object-cover"><button id="supplierProofPreview" type="button" class="text-sm font-semibold text-amber-500 hover:underline">Preview Image</button><button id="supplierProofRemove" type="button" class="text-sm font-semibold text-red-500 hover:underline">Remove</button></div><div id="supplierProofError" class="mt-3" role="alert" aria-live="assertive" hidden>
   <span aria-hidden="true" style="font-size:19px;line-height:1.2">⚠</span>
   <span id="supplierProofErrorText"></span>
 </div></div>
@@ -247,7 +247,43 @@ $balance = max(0,(float)$order->net_amount - $totalPaid);
     }
   });
 document.getElementById('supplierProofRemove').addEventListener('click',clearFile);document.getElementById('supplierProofPreview').addEventListener('click',()=>{if(previewUrl&&typeof window.openPaymentProof==='function')window.openPaymentProof(previewUrl)});
- form.addEventListener('submit',e=>{const btn=[...document.querySelectorAll('[data-supplier-open]')].find(b=>b.dataset.id===document.getElementById('supplierOrderId').value);if(!btn||['paid','overpaid'].includes(btn.dataset.status)){e.preventDefault();return}document.getElementById('supplierModalSubmit').disabled=true});
+ // Native required-file validation does not emit submit; show our own red warning.
+ file.addEventListener('invalid', event => {
+   if (!file.files?.length) {
+     event.preventDefault();
+     showFileError('Receipt is required! Please attach a JPG, PNG, WEBP, or GIF image (maximum 5 MB) before saving.');
+   }
+ });
+ form.addEventListener('submit', event => {
+   const btn = [...document.querySelectorAll('[data-supplier-open]')]
+       .find(b => b.dataset.id === document.getElementById('supplierOrderId').value);
+   if (!btn || ['paid', 'overpaid'].includes(btn.dataset.status)) {
+     event.preventDefault();
+     return;
+   }
+   const receipt = file.files?.[0];
+   if (!receipt) {
+     event.preventDefault();
+     showFileError('Receipt is required! Please attach a JPG, PNG, WEBP, or GIF image (maximum 5 MB) before saving.');
+     file.focus();
+     return;
+   }
+   const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+   if (!allowedTypes.includes(receipt.type) || !/\.(jpe?g|png|webp|gif)$/i.test(receipt.name)) {
+     event.preventDefault();
+     showFileError('Invalid file format! Only JPG, PNG, WEBP, and GIF images are accepted.');
+     file.value = '';
+     return;
+   }
+   if (receipt.size > 5 * 1024 * 1024) {
+     event.preventDefault();
+     showFileError('File is too large! Maximum allowed receipt size is 5 MB.');
+     file.value = '';
+     return;
+   }
+   hideFileError();
+   document.getElementById('supplierModalSubmit').disabled = true;
+ });
  @if($errors->any() && old('payment_order_id'))
  const failed=[...document.querySelectorAll('[data-supplier-open]')].find(b=>b.dataset.id===@js((string)old('payment_order_id')));
  if(failed){open(failed);form.elements['payment_date'].value=@js(old('payment_date',''));form.elements['amount'].value=@js(old('amount',''));form.elements['payment_method'].value=@js(old('payment_method',''));form.elements['reference_no'].value=@js(old('reference_no',''))}

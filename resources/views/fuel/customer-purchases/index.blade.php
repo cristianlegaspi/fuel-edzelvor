@@ -332,7 +332,7 @@
                     </div>
                     <div>
                         <label for="customerProofInput" class="mb-1 block text-xs text-slate-500 dark:text-slate-400">Proof of Payment (image only)</label>
-                        <input id="customerProofInput" name="proof_image" type="file" accept=".jpg,.jpeg,.png,.webp,.gif,image/jpeg,image/png,image/webp,image/gif" class="w-full rounded-lg border border-slate-300 dark:border-slate-600 p-2 text-sm">
+                        <input id="customerProofInput" name="proof_image" type="file" required aria-required="true" accept=".jpg,.jpeg,.png,.webp,.gif,image/jpeg,image/png,image/webp,image/gif" class="w-full rounded-lg border border-slate-300 dark:border-slate-600 p-2 text-sm">
                         <p class="mt-1 text-xs text-slate-400">JPG, PNG, WEBP, GIF · Maximum 5 MB</p>
                         <div id="customerProofSelected" class="mt-3 hidden items-center gap-3">
                             <img id="customerProofThumb" class="h-16 w-16 rounded border object-cover" alt="Selected proof thumbnail">
@@ -488,6 +488,12 @@
         if (previewUrl && typeof window.openPaymentProof === 'function') window.openPaymentProof(previewUrl);
     });
     document.getElementById('customerProofRemove').addEventListener('click', clearFile);
+    fileInput.addEventListener('invalid', event => {
+        if (!fileInput.files?.length) {
+            event.preventDefault();
+            showProofError('Receipt is required! Please attach a JPG, PNG, WEBP, or GIF image (maximum 5 MB) before saving.');
+        }
+    });
     form.addEventListener('submit', e => {
         const id = document.getElementById('customerPaymentPurchaseId').value;
         const trigger = [...document.querySelectorAll('[data-payment-open]')].find(b => b.dataset.purchaseId === id);
@@ -495,6 +501,28 @@
             e.preventDefault();
             return;
         }
+        const receipt = fileInput.files?.[0];
+        if (!receipt) {
+            e.preventDefault();
+            showProofError('Receipt is required! Please attach a JPG, PNG, WEBP, or GIF image (maximum 5 MB) before saving.');
+            fileInput.focus();
+            return;
+        }
+        const extension = (receipt.name.split('.').pop() || '').toLowerCase();
+        if (!['image/jpeg', 'image/png', 'image/webp', 'image/gif'].includes(receipt.type)
+            || !['jpg', 'jpeg', 'png', 'webp', 'gif'].includes(extension)) {
+            e.preventDefault();
+            showProofError('Invalid file format! Only JPG, PNG, WEBP, and GIF images are accepted.');
+            fileInput.value = '';
+            return;
+        }
+        if (receipt.size > 5 * 1024 * 1024) {
+            e.preventDefault();
+            showProofError('File is too large! Maximum receipt size is 5 MB.');
+            fileInput.value = '';
+            return;
+        }
+        hideProofError();
         document.getElementById('customerPaymentSubmit').disabled = true;
     });
 
