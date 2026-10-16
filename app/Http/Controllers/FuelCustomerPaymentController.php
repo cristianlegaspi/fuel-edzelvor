@@ -1,4 +1,3 @@
-
 <?php
 
 namespace App\Http\Controllers;
@@ -12,12 +11,17 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rules\File;
 use Illuminate\Validation\ValidationException;
 
+/**
+ * Payments received FROM the customer against a FuelCustomerPurchase.
+ * FuelCustomerPurchase::recalculateTotals() and the tracking-number
+ * generator both fire automatically from FuelCustomerPayment's model events.
+ */
 class FuelCustomerPaymentController extends Controller
 {
     /**
-     * Display all customer payments.
+     * Display customer payment records.
      */
-    public function index(Request $request)
+  public function index(Request $request)
     {
         $payments = FuelCustomerPayment::query()
             ->with('customerPurchase')
